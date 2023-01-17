@@ -22,6 +22,13 @@ static int stringHash(const char* string, int length) {
 
 
 
+Intern* getIntern(u32 id) {
+	Intern* interns = internList.data;
+	return &interns[id];
+}
+
+
+
 static int addInternToList(char* string, int length, int hash) {
 	listEnsureCapacity(&internList, sizeof(Intern));
 
@@ -40,7 +47,7 @@ static int addInternToList(char* string, int length, int hash) {
 
 int eyreIntern(char* string, int length) {
 	int hash = stringHash(string, length);
-	int bucketIndex = hash % bucketCount;
+	int bucketIndex = (int) ((u32) hash % bucketCount);
 	int bucket = buckets[bucketIndex];
 
 	// Empty bucket, simply add intern and return

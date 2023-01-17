@@ -1,0 +1,6 @@
+namespace main
+
+entry:
+	sub rsp, 40
+	add rsp, 40
+	ret

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stdarg.h>
 
 
 
@@ -19,12 +21,95 @@ typedef signed long long   s64;
 
 
 
+// Enums
+
+
+
+typedef enum EyreTokenType {
+	T_END,
+	T_INT,
+	T_LONG,
+	T_CHAR,
+	T_STRING,
+	T_ID,
+	T_SYM,
+	T_COUNT
+} EyreTokenType;
+
+
+
+typedef enum EyreTokenSymbol {
+	S_PLUS,
+	S_MINUS,
+	S_EQUALS,
+	S_EQUALITY,
+	S_INEQUALITY,
+	S_EXCLAMATION,
+	S_LPAREN,
+	S_RPAREN,
+	S_LBRACKET,
+	S_RBRACKET,
+	S_LBRACE,
+	S_RBRACE,
+	S_SEMICOLON,
+	S_COLON,
+	S_LT,
+	S_LTE,
+	S_GT,
+	S_GTE,
+	S_DOT,
+	S_SLASH,
+	S_TILDE,
+	S_PIPE,
+	S_AMPERSAND,
+	S_ASTERISK,
+	S_REFERENCE,
+	S_LOGICAL_AND,
+	S_LOGICAL_OR,
+	S_COMMA,
+	S_COUNT
+} EyreTokenSymbol;
+
+
+
+static char* eyreTokenSymbolNames[S_COUNT] = {
+	"+",
+	"-",
+	"=",
+	"==",
+	"!=",
+	"!",
+	"(",
+	")",
+	"[",
+	"]",
+	"{",
+	"}",
+	";",
+	":",
+	"<",
+	"<=",
+	">",
+	">=",
+	".",
+	"/",
+	"~",
+	"|",
+	"&",
+	"*",
+	"::",
+	"&&",
+	"||",
+	","
+};
+
 
 // Structs
 
 
 
 typedef struct SrcFile {
+	char* path;
 	char* data;
 	int size;
 } SrcFile;
@@ -67,7 +152,13 @@ void eyreLex(SrcFile* srcFile);
 
 int eyreIntern(char* string, int length);
 
+void printTokens();
+
 void listEnsureCapacity(List* list, int elementSize);
+
+Intern* getIntern(u32 id);
+
+char* getFileInCurrentDirectory(char* fileName);
 
 
 
@@ -95,12 +186,13 @@ void printPointer(void* value);
 
 void printInt(int value);
 
+void printString(char* value);
+
 void println(char* format, ...);
 
 
 
 // LOGGING
-// EYRE_LOG_INFO, EYRE_LOG_DEBUG, EYRE_LOG_ALL
 
 
 

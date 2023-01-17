@@ -1,7 +1,7 @@
 #include <fileapi.h>
 #include <handleapi.h>
-#include <stdarg.h>
 #include "eyre.h"
+#include <processenv.h>
 
 
 
@@ -21,6 +21,12 @@ void printInt(int value) {
 
 
 
+void printString(char* value) {
+	printf("%s\n", value);
+}
+
+
+
 void println(char* format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -31,12 +37,11 @@ void println(char* format, ...) {
 void eyreLogError_(char* format, const char* file, int line, ...) {
 	va_list args;
 	va_start(args, line);
-	fprintf(stderr, "ERROR %s:%d: ", file, line);
+	fprintf(stderr, "Error at %s:%d: ", file, line);
 	vfprintf(stderr, format, args);
 	fprintf(stderr, "\n");
 	exit(1);
 }
-
 
 void eyreLogWarning_(char* format, const char* file, int line, ...) {
 	va_list args;
@@ -93,6 +98,7 @@ void createSrcFile(SrcFile* srcFile, char* path) {
 	data[size + 2] = 0;
 	data[size + 3] = 0;
 
+	srcFile->path = path;
 	srcFile->size = size;
 	srcFile->data = data;
 
@@ -138,7 +144,7 @@ static void* persistentEnd;
 void* eyreAllocPersistent(int size) {
 	if(persistentCurrent + size > persistentEnd) {
 		persistentCurrent = malloc(persistentSize);
-		persistentEnd = persistentCurrent + persistentSize;;
+		persistentEnd = persistentCurrent + persistentSize;
 	}
 
 	void* pointer = persistentCurrent;
@@ -165,3 +171,24 @@ void listEnsureCapacity(List* list, int elementSize) {
 
 
 
+char* getFileInCurrentDirectory(char* fileName) {
+	int fileNameLength = (int) strlen(fileName);
+	int length = (int) GetCurrentDirectoryA(0, NULL);
+	char* file = eyreAlloc(length + fileNameLength);
+	GetCurrentDirectoryA(length, file);
+
+	int index;
+	for(int i = length - 1; i >= 0; i--) {
+		if(file[i] == '\\') {
+			index = i + 1;
+			break;
+		}
+	}
+
+	for(int i = 0; i < fileNameLength; i++)
+		file[index + i] = fileName[i];
+
+	file[index + fileNameLength] = 0;
+
+	return file;
+}

@@ -1,5 +1,8 @@
 #include "eyre.h"
 
 int main() {
-	println("intern id: %d", eyreIntern("test", 4));
+	SrcFile file;
+	createSrcFile(&file, getFileInCurrentDirectory("test.txt"));
+	eyreLex(&file);
+	printTokens();
 }
