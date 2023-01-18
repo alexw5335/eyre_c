@@ -10,7 +10,7 @@ typedef struct {
 
 
 
-static List internList = { .size = 1, .capacity = 1024 };
+static List eyreInternList = { .size = 1, .capacity = 1024 };
 
 static List nodeList = { .size = 1, .capacity = 1024 };
 
@@ -30,22 +30,22 @@ static int stringHash(const char* string, int length) {
 
 
 Intern* eyreGetIntern(u32 id) {
-	Intern* interns = internList.data;
+	Intern* interns = eyreInternList.data;
 	return &interns[id];
 }
 
 
 
 static int addInternToList(char* string, int length, int hash) {
-	eyreCheckListCapacity(&internList, sizeof(Intern));
+	eyreCheckListCapacity(&eyreInternList, sizeof(Intern));
 
 	char* newString = eyreAlloc(length + 1);
 	memcpy(newString, string, length);
 	string = newString;
 
-	int id = internList.size;
-	Intern* interns = internList.data;
-	Intern* intern = &interns[internList.size++];
+	int id = eyreInternList.size;
+	Intern* interns = eyreInternList.data;
+	Intern* intern = &interns[eyreInternList.size++];
 	intern->id = id;
 	intern->length = length;
 	intern->hash = hash;
@@ -69,7 +69,7 @@ int eyreAddIntern(char* string, int length) {
 	}
 
 	eyreCheckListCapacity(&nodeList, sizeof(Node));
-	Intern* interns = internList.data;
+	Intern* interns = eyreInternList.data;
 	Node* nodes = nodeList.data;
 
 	// Bucket contains a single intern
@@ -121,4 +121,38 @@ int eyreAddIntern(char* string, int length) {
 
 		node = &nodes[node->next];
 	}
+}
+
+
+
+static int addIntern(char* string) {
+	return eyreAddIntern(string, (int) strlen(string));
+}
+
+
+
+void eyreInitInterns() {
+	// Keywords
+	eyreKeywordInternStart = eyreInternList.size;
+	for(int i = 0; i < KEYWORD_COUNT; i++)
+		addIntern(eyreKeywordNames[i]);
+	eyreKeywordInternEnd = eyreInternList.size;
+
+	// Widths
+	eyreWidthInternStart = eyreInternList.size;
+	for(int i = 0; i < WIDTH_COUNT; i++)
+		addIntern(eyreWidthNames[i]);
+	eyreWidthInternEnd = eyreInternList.size;
+
+	// General-purpose registers
+	eyreRegisterInternStart = eyreInternList.size;
+	for(int i = 0; i < 16; i++)
+		addIntern(eyreByteRegNames[i]);
+	for(int i = 0; i < 16; i++)
+		addIntern(eyreWordRegNames[i]);
+	for(int i = 0; i < 16; i++)
+		addIntern(eyreDWordRegNames[i]);
+	for(int i = 0; i < 16; i++)
+		addIntern(eyreQWordRegNames[i]);
+	eyreRegisterInternEnd = eyreInternList.size;
 }
