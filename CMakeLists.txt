@@ -9,8 +9,8 @@ add_executable(
         src/eyre.c
         src/eyre.h
         src/intern.c
-        src/parser.c
-)
+        src/lexer.c
+        src/parser.c src/log.h src/log.c)
 
 # Defines:
 # EYRE_LOG_TRACE: Log trace-level logs

@@ -2,7 +2,7 @@
 
 int main() {
 	SrcFile file;
-	createSrcFile(&file, getFileInCurrentDirectory("test.txt"));
+	eyreCreateSrcFileFromFile(&file, eyreGetFileInCurrentDirectory("test.txt"));
 	eyreLex(&file);
-	printTokens();
+	eyrePrintTokens();
 }

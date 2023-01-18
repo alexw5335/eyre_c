@@ -1,4 +1,7 @@
-#pragma once
+#ifndef EYRE_INCLUDE
+#define EYRE_INCLUDE
+
+
 
 #include <stdio.h>
 #include <stdint.h>
@@ -110,8 +113,11 @@ static char* eyreTokenSymbolNames[S_COUNT] = {
 
 typedef struct SrcFile {
 	char* path;
-	char* data;
-	int size;
+	char* chars;
+	int   size;
+	u8*   tokenTypes;
+	u32*  tokens;
+	int   tokenCount;
 } SrcFile;
 
 
@@ -134,31 +140,33 @@ typedef struct {
 
 
 
-typedef struct {
-	int intern;
-	int next;
-} Node;
+// General
 
 
 
+void eyreCreateSrcFileFromFile(SrcFile* srcFile, char* path);
 
-// Functions
+char* eyreGetFileInCurrentDirectory(char* fileName);
 
 
 
-void createSrcFile(SrcFile* srcFile, char* path);
+// Interning
+
+
+
+int eyreAddIntern(char* string, int length);
+
+Intern* eyreGetIntern(u32 id);
+
+
+
+// Lexing
+
+
 
 void eyreLex(SrcFile* srcFile);
 
-int eyreIntern(char* string, int length);
-
-void printTokens();
-
-void listEnsureCapacity(List* list, int elementSize);
-
-Intern* getIntern(u32 id);
-
-char* getFileInCurrentDirectory(char* fileName);
+void eyrePrintTokens();
 
 
 
@@ -172,63 +180,8 @@ void* eyreRealloc(void* pointer, int size);
 
 void eyreFree(void* pointer);
 
-void* eyreAllocPersistent(int size);
-
-void checkListCapacity(List* list, int elementSize);
+void eyreCheckListCapacity(List* list, int elementSize);
 
 
 
-// PRINTING
-
-
-
-void printPointer(void* value);
-
-void printInt(int value);
-
-void printString(char* value);
-
-void println(char* format, ...);
-
-
-
-// LOGGING
-
-
-
-// Always results in termination, logged to stderr
-void eyreLogError_(char* format, const char* file, int line, ...);
-
-// Always logged
-void eyreLogWarning_(char* format, const char* file, int line, ...);
-
-// Important debug messages
-void eyreLogDebug_(char* format, const char* file, int line, ...);
-
-// Unimportant debug messages
-void eyreLogInfo_(char* format, const char* file, int line, ...);
-
-// Only for targeted debugging
-void eyreLogTrace_(char* format, const char* file, int line, ...);
-
-#define eyreLogError(format, ...) eyreLogError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#define eyreLogWarning(format, ...) eyreLogWarning_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-
-#if defined(EYRE_LOG_DEBUG) | defined(EYRE_LOG_ALL)
-#define eyreLogDebug(format, ...) eyreLogDebug_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-#else
-#define eyreLogDebug(format, ...)
-#endif
-
-#if defined(EYRE_LOG_INFO) | defined(EYRE_LOG_ALL)
-#define eyreLogInfo(format, ...) eyreLogInfo_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-#else
-#define eyreLogInfo(format, ...)
-#endif
-
-#if defined(EYRE_LOG_TRACE) | defined(EYRE_LOG_ALL)
-#define eyreLogTrace(format, ...) eyreLogTrace_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-#else
-#define eyreLogTrace(format, ...)
-#endif
+#endif // EYRE_INCLUDE

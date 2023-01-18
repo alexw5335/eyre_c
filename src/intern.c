@@ -3,6 +3,13 @@
 
 
 
+typedef struct {
+	int intern;
+	int next;
+} Node;
+
+
+
 static List internList = { .size = 1, .capacity = 1024 };
 
 static List nodeList = { .size = 1, .capacity = 1024 };
@@ -22,7 +29,7 @@ static int stringHash(const char* string, int length) {
 
 
 
-Intern* getIntern(u32 id) {
+Intern* eyreGetIntern(u32 id) {
 	Intern* interns = internList.data;
 	return &interns[id];
 }
@@ -30,7 +37,11 @@ Intern* getIntern(u32 id) {
 
 
 static int addInternToList(char* string, int length, int hash) {
-	listEnsureCapacity(&internList, sizeof(Intern));
+	eyreCheckListCapacity(&internList, sizeof(Intern));
+
+	char* newString = eyreAlloc(length + 1);
+	memcpy(newString, string, length);
+	string = newString;
 
 	int id = internList.size;
 	Intern* interns = internList.data;
@@ -45,7 +56,7 @@ static int addInternToList(char* string, int length, int hash) {
 
 
 
-int eyreIntern(char* string, int length) {
+int eyreAddIntern(char* string, int length) {
 	int hash = stringHash(string, length);
 	int bucketIndex = (int) ((u32) hash % bucketCount);
 	int bucket = buckets[bucketIndex];
@@ -57,7 +68,7 @@ int eyreIntern(char* string, int length) {
 		return internId;
 	}
 
-	listEnsureCapacity(&nodeList, sizeof(Node));
+	eyreCheckListCapacity(&nodeList, sizeof(Node));
 	Intern* interns = internList.data;
 	Node* nodes = nodeList.data;
 
@@ -72,12 +83,12 @@ int eyreIntern(char* string, int length) {
 		// Otherwise, the bucket is changed to refer to a linked list node
 		int internId = addInternToList(string, length, hash);
 
-		listEnsureCapacity(&nodeList, sizeof(Node));
+		eyreCheckListCapacity(&nodeList, sizeof(Node));
 		nodes[nodeList.size].intern = bucket >> 1;
 		nodes[nodeList.size].next = nodeList.size + 1;
 		nodeList.size++;
 
-		listEnsureCapacity(&nodeList, sizeof(Node));
+		eyreCheckListCapacity(&nodeList, sizeof(Node));
 		nodes[nodeList.size].intern = internId;
 		nodes[nodeList.size].next = 0;
 		nodeList.size++;
@@ -101,7 +112,7 @@ int eyreIntern(char* string, int length) {
 		if(node->next == 0) {
 			int internId = addInternToList(string, length, hash);
 			node->next = nodeList.size;
-			listEnsureCapacity(&nodeList, sizeof(Node));
+			eyreCheckListCapacity(&nodeList, sizeof(Node));
 			nodes[nodeList.size].intern = internId;
 			nodes[nodeList.size].next = 0;
 			nodeList.size++;
