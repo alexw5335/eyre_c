@@ -17,24 +17,31 @@ static u8* terminators;
 
 
 
-#define nodeCapacity 16384
-
-static char nodeTypes[nodeCapacity];
-
-static int nodes[nodeCapacity];
-
-static int nodeCount;
-
-
-
-void addNode(EyreNodeType type, int node) {
-	nodeTypes[nodeCount] = type;
-	nodes[nodeCount++] = node;
+static int atTerminator() {
+	return terminators[pos >> 3] & (1 << (pos & 7));
 }
 
 
 
-static void parseAtom() {
+static char nodeTypes[66536];
+
+static void* nodes[66536];
+
+static int nodePos;
+
+static void* nodeBank[66536];
+
+static void* nodeBankPos;
+
+
+
+void intNode(int value) {
+	void* pointer = nodeBankPos;
+}
+
+
+
+/*static void parseAtom() {
 	EyreTokenType type = tokenTypes[pos];
 	int token = (int) tokens[pos++];
 
@@ -69,11 +76,6 @@ static void parseAtom() {
 	eyreLogError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
 }
 
-
-
-static int atTerminator() {
-	return terminators[pos >> 3] & (1 << (pos & 7));
-}
 
 
 
@@ -168,4 +170,4 @@ void eyreParse(SrcFile* inputSrcFile) {
 		}
 
 	}
-}
+}*/

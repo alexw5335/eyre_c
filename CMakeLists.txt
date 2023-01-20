@@ -13,21 +13,12 @@ add_executable(
         src/parser.c
         src/log.h
         src/log.c
+        src/generator.c
+        src/lex.h
 )
 
-# Defines:
-# EYRE_LOG_TRACE: Log trace-level logs
-# EYRE_LOG_INFO:  Log info-level logs
-# EYRE_LOG_DEBUG: Log debug-level logs
-# EYRE_LOG_ALL:   Log everything
 target_compile_definitions(
         eyre
         PUBLIC
         EYRE_LOG_ALL
 )
-
-
-add_executable(
-        gen
-        gen/generator.c
-        gen/encodings.h)

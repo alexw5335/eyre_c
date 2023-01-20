@@ -13,6 +13,9 @@
 
 
 
+#define TRUE 1
+#define FALSE 0
+
 typedef unsigned char      u8;
 typedef signed char        s8;
 typedef unsigned short     u16;
@@ -249,7 +252,7 @@ char* eyreGetLocalFile(char* fileName);
 
 static List eyreInternList;
 
-int eyreAddIntern(char* string, int length);
+int eyreAddIntern(char* string, int length, int copy);
 
 Intern* eyreGetIntern(u32 id);
 
@@ -280,6 +283,14 @@ static int eyreMnemonicInternEnd;
 void eyreLex(SrcFile* srcFile);
 
 void eyrePrintTokens();
+
+
+
+// Parsing
+
+
+
+void eyreParse(SrcFile* srcFile);
 
 
 

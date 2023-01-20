@@ -50,14 +50,23 @@ static int lineCount;
 static char stringBuilder[stringBuilderCapacity];
 
 
+#define lexerError(format, ...) lexerError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
 
-static void lexerError(char* format, ...) {
+
+
+static void lexerError_(char* format, char* file, int line, ...) {
 	fprintf(stderr, "Lexer error at %s:%d: ", srcFile.path, lineCount);
 	va_list args;
-	va_start(args, format);
+	va_start(args, line);
 	vfprintf(stderr, format, args);
 	fprintf(stderr, "\n");
-	exit(1);
+	eyreLogError_("Lexer error", file, line);
+}
+
+
+
+static inline int isIdChar(char c) {
+	return idMap[c >> 3] & (1 << (c & 7));
 }
 
 
@@ -96,22 +105,68 @@ static void parseBinary() {
 
 	while(1) {
 		u8 c = chars[pos];
+
 		if(c == '_') {
 			pos++;
 			continue;
 		}
+
 		c -= '0';
 		if(c > 1) break;
 		pos++;
+
 		if(number & (1LL << 63))
-			lexerError("Integer out of range");
+			lexerError("Integer literal out of range");
+
 		number = (number << 1) | c;
 	}
 
 	if(number > UINT32_MAX)
 		lexerError("64-bit integers not yet supported");
 
+	if(isIdChar(chars[pos]))
+		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
+
 	addToken(TOKEN_INT, (u32) number);
+}
+
+
+
+static void parseHex() {
+	u64 value = 0;
+
+	while(1) {
+		u8 c = chars[pos];
+
+		if(c == '_') {
+			pos++;
+			continue;
+		}
+
+		if(c >= '0' && c <= '9')
+			c -= '0';
+		else if(c >= 'A' && c <= 'F')
+			c -= 'A' - 10;
+		else if(c >= 'a' && c <= 'f')
+			c -= 'a' - 10;
+		else
+			break;
+
+		pos++;
+
+		if((value & (0b1111LL << 60)) != 0L)
+			lexerError("Integer literal out of range");
+
+		value = (value << 4) | c;
+	}
+
+	if(value > UINT32_MAX)
+		lexerError("64-bit integers are not yet supported");
+
+	if(isIdChar(chars[pos]))
+		lexerError("Invalid value char: %d ('%c')", chars[pos], chars[pos]);
+
+	addToken(TOKEN_INT, (u32) value);
 }
 
 
@@ -121,20 +176,27 @@ static void parseDecimal() {
 
 	while(1) {
 		u8 c = chars[pos];
+
 		if(c == '_') {
 			pos++;
 			continue;
 		}
+
 		c -= '0';
 		if(c > 9) break;
 		pos++;
+
 		if(number & (0xFFLL << 56))
-			eyreLogError("Integer out of range");
+			lexerError("Integer literal out of range");
+
 		number = (number * 10) + c;
 	}
 
 	if(number > UINT32_MAX)
 		lexerError("64-bit integers are not yet supported");
+
+	if(isIdChar(chars[pos]))
+		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
 
 	addToken(TOKEN_INT, (u32) number);
 }
@@ -218,7 +280,7 @@ static void readId() {
 			break;
 	}
 	pos += length;
-	addToken(TOKEN_ID, eyreAddIntern(string, length));
+	addToken(TOKEN_ID, eyreAddIntern(string, length, TRUE));
 }
 
 
@@ -238,7 +300,7 @@ static void readString() {
 		}
 	}
 
-	addToken(TOKEN_STRING, eyreAddIntern(stringBuilder, length));
+	addToken(TOKEN_STRING, eyreAddIntern(stringBuilder, length, TRUE));
 }
 
 
@@ -289,15 +351,11 @@ static void processSlash() {
 
 
 static void processZero() {
-	char base = chars[++pos];
-	if(base == 'b') {
-		pos++;
-		parseBinary();
-	} else if(base == 'd') {
-		pos++;
-		parseDecimal();
-	} else {
-		parseDecimal();
+	switch(chars[++pos]) {
+		case 'b': pos++; parseBinary(); break;
+		case 'd': pos++; parseDecimal(); break;
+		case 'x': pos++; parseHex(); break;
+		default: parseDecimal(); break;
 	}
 }
 
@@ -400,7 +458,7 @@ void eyreLex(SrcFile* inputSrcFile) {
 	// Pad end with EOF tokens
 	for(int i = 0; i < 4; i++) addToken(TOKEN_END, 0);
 
-	int terminatorsSize = ((tokenCount + 7) * -8) >> 3;
+	int terminatorsSize = ((tokenCount + 7) & -8) >> 3;
 
 	inputSrcFile->tokens = eyreAlloc(tokenCount << 2);
 	inputSrcFile->tokenTypes = eyreAlloc(tokenCount);
@@ -433,7 +491,7 @@ void eyrePrintTokens() {
 		} else if(type == TOKEN_STRING) {
 			printf("STR   \"%s\"\n", eyreGetIntern(value)->string);
 		} else if(type >= TOKEN_SYM_START) {
-			printf("SYM   %s\n", eyreTokenNames[value]);
+			printf("SYM   %s\n", eyreTokenNames[type]);
 		}
 	}
 }
