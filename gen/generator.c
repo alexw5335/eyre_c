@@ -75,16 +75,75 @@ char* getLocalFile(char* fileName) {
 
 
 
+int parseHex(unsigned char c) {
+	if(c >= '0' && c <= '9')
+		return c - '0';
+	if(c >= 'a' && c <= 'f')
+		return c - 'a' + 10;
+	if(c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+	error("Invalid hex: %d", c);
+	return 0;
+}
+
+
+
+int parseHexString(char* string, int length) {
+	int value = 0;
+	for(int i = 0; i < length; i++)
+		value = (value << 4) | parseHex(string[i]);
+	return value;
+}
+
+
+
 void parse(char* path) {
 	readFile(getLocalFile(path));
 
 	while(pos < size) {
-		char c = chars[pos++];
+		char c = chars[pos];
+
+		if(c == ';')
+			break;
+
+		if(c == '\n' || c == '\r') {
+			pos++;
+			continue;
+		}
+
+		if(c == '#') {
+			while(chars[pos++] != '\n') { }
+			continue;
+		}
+
+		char* opcodeString = &chars[pos];
+		int opcodeLength = 0;
+		while(opcodeString[opcodeLength] != ' ' && opcodeString[opcodeLength] != '/') opcodeLength++;
+		pos += opcodeLength;
+		int opcode = parseHexString(opcodeString, opcodeLength);
+		int extension = 0;
+
+		if(chars[pos] == '/') {
+			pos++;
+			extension = chars[pos++] - '0';
+			if(extension < 0 || extension > 9)
+				error("Invalid extension: %d", extension);
+		}
+
+		while(chars[pos] == ' ') pos++;
+
+		char* mnemonicString = &chars[pos];
+		int mnemonicLength = 0;
+		while(mnemonicString[mnemonicLength] != ' ' && mnemonicString[mnemonicLength] != '\n') mnemonicLength++;
+		pos += mnemonicLength;
+
+		printf("%x %.*s\n", opcode, mnemonicLength, mnemonicString);
+		while(chars[pos++] != '\n') { }
 	}
 }
 
 
 
 int main() {
-	readFile(getLocalFile("gen/encodings.txt"));
+	parse("gen/encodings.txt");
 }

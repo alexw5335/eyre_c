@@ -6,7 +6,7 @@
 
 
 
-void eyreCreateSrcFileFromFile(SrcFile* srcFile, char* path) {
+void eyreCreateSrcFile(SrcFile* srcFile, char* path) {
 	HANDLE handle = CreateFileA(
 		path,
 		GENERIC_READ,
@@ -100,7 +100,7 @@ void eyreCheckListCapacity(List* list, int elementSize) {
 
 
 
-char* eyreGetFileInCurrentDirectory(char* fileName) {
+char* eyreGetLocalFile(char* fileName) {
 	int fileNameLength = (int) strlen(fileName);
 	int length = (int) GetCurrentDirectoryA(0, NULL);
 	char* file = eyreAlloc(length + fileNameLength);

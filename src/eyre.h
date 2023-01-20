@@ -28,61 +28,96 @@ typedef signed long long   s64;
 
 
 
+typedef enum EyreNodeType {
+	NODE_REG,
+	NODE_INT,
+	NODE_SYM,
+
+	NODE_ADD,
+	NODE_SUB,
+	NODE_DIV,
+	NODE_MUL,
+	NODE_AND,
+	NODE_OR,
+	NODE_XOR,
+
+	NODE_NEG,
+	NODE_POS,
+	NODE_NOT,
+
+	NODE_COUNT,
+} EyreNodeType;
+
+
+
+static char* eyreNodeNames[NODE_COUNT] = {
+	"REG", "INT", "SYM", "ADD",
+	"SUB", "DIV", "MUL", "AND",
+	"OR", "XOR", "NEG", "POS",
+	"NOT"
+};
+
+
+
 typedef enum EyreTokenType {
-	T_END,
-	T_INT,
-	T_LONG,
-	T_CHAR,
-	T_STRING,
-	T_ID,
-	T_SYM,
-	T_COUNT
+	TOKEN_END,
+	TOKEN_INT,
+	TOKEN_LONG,
+	TOKEN_CHAR,
+	TOKEN_STRING,
+	TOKEN_ID,
+
+	TOKEN_PLUS,
+	TOKEN_MINUS,
+	TOKEN_EQUALS,
+	TOKEN_EQUALITY,
+	TOKEN_INEQUALITY,
+	TOKEN_EXCLAMATION,
+	TOKEN_LPAREN,
+	TOKEN_RPAREN,
+	TOKEN_LBRACKET,
+	TOKEN_RBRACKET,
+	TOKEN_LBRACE,
+	TOKEN_RBRACE,
+	TOKEN_SEMICOLON,
+	TOKEN_COLON,
+	TOKEN_LT,
+	TOKEN_LTE,
+	TOKEN_GT,
+	TOKEN_GTE,
+	TOKEN_DOT,
+	TOKEN_SLASH,
+	TOKEN_TILDE,
+	TOKEN_PIPE,
+	TOKEN_AMPERSAND,
+	TOKEN_ASTERISK,
+	TOKEN_REFERENCE,
+	TOKEN_LOGICAL_AND,
+	TOKEN_LOGICAL_OR,
+	TOKEN_COMMA,
+	TOKEN_LSHIFT,
+	TOKEN_RSHIFT,
+	TOKEN_CARET,
+
+	TOKEN_COUNT
 } EyreTokenType;
 
 
 
-typedef enum EyreTokenSymbol {
-	S_PLUS,
-	S_MINUS,
-	S_EQUALS,
-	S_EQUALITY,
-	S_INEQUALITY,
-	S_EXCLAMATION,
-	S_LPAREN,
-	S_RPAREN,
-	S_LBRACKET,
-	S_RBRACKET,
-	S_LBRACE,
-	S_RBRACE,
-	S_SEMICOLON,
-	S_COLON,
-	S_LT,
-	S_LTE,
-	S_GT,
-	S_GTE,
-	S_DOT,
-	S_SLASH,
-	S_TILDE,
-	S_PIPE,
-	S_AMPERSAND,
-	S_ASTERISK,
-	S_REFERENCE,
-	S_LOGICAL_AND,
-	S_LOGICAL_OR,
-	S_COMMA,
-	S_COUNT
-} EyreTokenSymbol;
+#define TOKEN_SYM_START TOKEN_PLUS
 
 
 
-static char* eyreTokenSymbolNames[S_COUNT] = {
+static char* eyreTokenNames[TOKEN_COUNT] = {
+	"END","INT","LONG","CHAR","STRING","ID",
 	"+","-","=","==",
 	"!=","!","(",")",
 	"[","]","{","}",
 	";",":","<","<=",
 	">",">=",".","/",
 	"~","|","&","*",
-	"::","&&","||",","
+	"::","&&","||",",",
+	"<<", ">>", "^",
 };
 
 
@@ -150,12 +185,16 @@ static char* eyreWidthNames[WIDTH_COUNT] = {
 };
 
 
-// TODO: Auto-generate a list of valid mnemonics from an instruction table
+
 typedef enum {
-	ADD,
-	SUB,
+	MNEMONIC_ADD,
+	MNEMONIC_SUB,
+	MNEMONIC_COUNT,
 } EyreMnemonic;
 
+static char* eyreMnemonicNames[MNEMONIC_COUNT] = {
+	"add", "sub"
+};
 
 
 
@@ -167,9 +206,11 @@ typedef struct SrcFile {
 	char* path;
 	char* chars;
 	int   size;
-	u8*   tokenTypes;
-	u32*  tokens;
+	char* tokenTypes;
+	int*  tokens;
 	int   tokenCount;
+	char* terminators;
+	int   terminatorsSize;
 } SrcFile;
 
 
@@ -196,9 +237,9 @@ typedef struct {
 
 
 
-void eyreCreateSrcFileFromFile(SrcFile* srcFile, char* path);
+void eyreCreateSrcFile(SrcFile* srcFile, char* path);
 
-char* eyreGetFileInCurrentDirectory(char* fileName);
+char* eyreGetLocalFile(char* fileName);
 
 
 
@@ -215,13 +256,20 @@ Intern* eyreGetIntern(u32 id);
 void eyreInitInterns();
 
 static int eyreRegisterInternStart;
+static int eyreRegisterInternCount;
 static int eyreRegisterInternEnd;
 
 static int eyreKeywordInternStart;
+static int eyreKeywordInternCount;
 static int eyreKeywordInternEnd;
 
 static int eyreWidthInternStart;
+static int eyreWidthInternCount;
 static int eyreWidthInternEnd;
+
+static int eyreMnemonicInternStart;
+static int eyreMnemonicInternCount;
+static int eyreMnemonicInternEnd;
 
 
 

@@ -2,38 +2,6 @@
 #include "log.h"
 
 
-typedef enum {
-	N_BINARY,
-	N_UNARY,
-	N_INT,
-	N_STRING,
-	N_NAMESPACE,
-	N_INSTRUCTION,
-	N_SCOPE_END, // no contents
-	N_COUNT
-} EyreNodeType;
-
-
-
-typedef enum {
-	BINARY_ADD,
-	BINARY_SUB,
-	BINARY_MUL,
-	BINARY_DIV,
-	BINARY_OR,
-	BINARY_AND,
-	BINARY_XOR,
-} BinaryOp;
-
-
-
-typedef enum {
-	UNARY_PLUS,
-	UNARY_MINUS,
-	UNARY_NOT,
-} UnaryOp;
-
-
 
 static SrcFile srcFile;
 
@@ -45,19 +13,126 @@ static int tokenCount;
 
 static int pos = 0;
 
+static u8* terminators;
+
 
 
 #define nodeCapacity 16384
 
-static u8 nodeTypes[nodeCapacity];
+static char nodeTypes[nodeCapacity];
 
-static u32 nodes[nodeCapacity];
+static int nodes[nodeCapacity];
 
 static int nodeCount;
 
 
 
-void parseKeyword(EyreKeyword keyword) {
+void addNode(EyreNodeType type, int node) {
+	nodeTypes[nodeCount] = type;
+	nodes[nodeCount++] = node;
+}
+
+
+
+static void parseAtom() {
+	EyreTokenType type = tokenTypes[pos];
+	int token = (int) tokens[pos++];
+
+	if(type == TOKEN_ID) {
+		int reg = (int) token - eyreRegisterInternStart;
+
+		if(reg < eyreRegisterInternCount) {
+			addNode(NODE_REG, reg);
+			return;
+		}
+
+		addNode(NODE_SYM, token);
+		return;
+	}
+
+	if(type == TOKEN_INT) {
+		addNode(NODE_INT, token);
+		return;
+	}
+
+	if(type > TOKEN_SYM_START) {
+		if(type == TOKEN_MINUS)
+			addNode(NODE_NEG, 0);
+		else if(type == TOKEN_PLUS)
+			addNode(NODE_POS, 0);
+		else if(type == TOKEN_TILDE)
+			addNode(NODE_NOT, 0);
+		else
+			eyreLogError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
+	}
+
+	eyreLogError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
+}
+
+
+
+static int atTerminator() {
+	return terminators[pos >> 3] & (1 << (pos & 7));
+}
+
+
+
+static int opPrecedence(EyreTokenType op) {
+	switch(op) {
+		case TOKEN_LPAREN: return 6;
+		case TOKEN_DOT: return 5;
+
+		case TOKEN_ASTERISK:
+		case TOKEN_SLASH: return 4;
+
+		case TOKEN_PLUS:
+		case TOKEN_MINUS: return 3;
+
+		case TOKEN_LSHIFT:
+		case TOKEN_RSHIFT: return 2;
+
+		case TOKEN_AMPERSAND:
+		case TOKEN_CARET:
+		case TOKEN_PIPE: return 1;
+		default: return 0;
+	}
+}
+
+
+
+static void parseExpression(int precedence) {
+	parseAtom();
+
+	while(1) {
+		EyreTokenType type = tokenTypes[pos];
+		int token = (int) tokens[pos];
+
+		if(type < TOKEN_SYM_START) {
+			if(!atTerminator()) {
+				eyreLogError("Use a semicolon to separate expressions that are on the same line");
+			} else {
+				break;
+			}
+		}
+
+		if(type == TOKEN_SEMICOLON) break;
+		int precedence2 = opPrecedence(type);
+		pos++;
+
+		parseAtom();
+	}
+}
+
+
+
+static void parseKeyword(EyreKeyword keyword) {
+	pos++;
+}
+
+
+
+static void parseInstruction(EyreMnemonic mnemonic) {
+	pos++;
 
 }
 
@@ -70,19 +145,27 @@ void eyreParse(SrcFile* inputSrcFile) {
 	tokenCount = srcFile.tokenCount;
 	pos        = 0;
 	nodeCount  = 0;
+	terminators = srcFile.terminators;
 
 	while(1) {
 		u8 type = tokenTypes[pos];
 		u32 token = tokens[pos];
 
-		if(type == T_END) break;
+		if(type == TOKEN_END) break;
 
-		switch(type) {
-			case T_ID: {
-				u32 keyword = token - eyreKeywordInternStart;
-				if(keyword < KEYWORD_COUNT)
-					parseKeyword(keyword);
-			}
+		if(type == TOKEN_ID) {
+			u32 keyword = token - eyreKeywordInternStart;
+
+			if(keyword < KEYWORD_COUNT)
+				parseKeyword(keyword);
+
+			u32 mnemonic = token - eyreMnemonicInternStart;
+
+			if(mnemonic < MNEMONIC_COUNT)
+				parseInstruction(mnemonic);
+
+			eyreLogError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
 		}
+
 	}
 }

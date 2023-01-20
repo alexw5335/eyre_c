@@ -3,7 +3,7 @@
 int main() {
 	eyreInitInterns();
 	SrcFile file;
-	eyreCreateSrcFileFromFile(&file, eyreGetFileInCurrentDirectory("test.txt"));
+	eyreCreateSrcFile(&file, eyreGetLocalFile("test.txt"));
 	eyreLex(&file);
 	eyrePrintTokens();
 }

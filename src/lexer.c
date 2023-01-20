@@ -84,9 +84,9 @@ static void addToken(EyreTokenType type, u32 value) {
 
 
 
-static void addSymbol(EyreTokenSymbol symbol) {
+static void addSymbol(EyreTokenType symbol) {
 	setTerminator();
-	addToken(T_SYM, symbol);
+	addToken(symbol, 0);
 }
 
 
@@ -111,7 +111,7 @@ static void parseBinary() {
 	if(number > UINT32_MAX)
 		lexerError("64-bit integers not yet supported");
 
-	addToken(T_INT, (u32) number);
+	addToken(TOKEN_INT, (u32) number);
 }
 
 
@@ -136,18 +136,33 @@ static void parseDecimal() {
 	if(number > UINT32_MAX)
 		lexerError("64-bit integers are not yet supported");
 
-	addToken(T_INT, (u32) number);
+	addToken(TOKEN_INT, (u32) number);
 }
 
 
 
-static inline void doubleSymbol(char secondChar, EyreTokenSymbol firstSymbol, EyreTokenSymbol secondSymbol) {
+static inline void doubleSymbol(char secondChar, EyreTokenType firstSymbol, EyreTokenType secondSymbol) {
 	pos++;
 	if(chars[pos] == secondChar) {
 		pos++;
 		addSymbol(secondSymbol);
 	} else {
 		addSymbol(firstSymbol);
+	}
+}
+
+
+
+static inline void doubleSymbol2(char char1, int sym1, char char2, int sym2, int symDefault) {
+	pos++;
+	if(chars[pos] == char1) {
+		pos++;
+		addSymbol(sym1);
+	} else if(chars[pos] == char2) {
+		pos++;
+		addSymbol(sym2);
+	} else {
+		addSymbol(symDefault);
 	}
 }
 
@@ -203,7 +218,7 @@ static void readId() {
 			break;
 	}
 	pos += length;
-	addToken(T_ID, eyreAddIntern(string, length));
+	addToken(TOKEN_ID, eyreAddIntern(string, length));
 }
 
 
@@ -223,7 +238,7 @@ static void readString() {
 		}
 	}
 
-	addToken(T_STRING, eyreAddIntern(stringBuilder, length));
+	addToken(TOKEN_STRING, eyreAddIntern(stringBuilder, length));
 }
 
 
@@ -232,7 +247,7 @@ static void readChar() {
 	pos++;
 	char c = chars[pos++];
 	if(c == '\\') c = escape();
-	addToken(T_CHAR, c);
+	addToken(TOKEN_CHAR, c);
 	if(chars[pos++] != '\'')
 		lexerError("Unterminated char literal");
 }
@@ -248,7 +263,7 @@ static void processSlash() {
 	}
 
 	if(next != '*') {
-		addSymbol(S_SLASH);
+		addSymbol(TOKEN_SLASH);
 		return;
 	}
 
@@ -356,40 +371,46 @@ void eyreLex(SrcFile* inputSrcFile) {
 
 			case '"': readString(); break;
 
-			case '|': doubleSymbol('|', S_PIPE, S_LOGICAL_OR); break;
-			case '&': doubleSymbol('&', S_AMPERSAND, S_LOGICAL_AND); break;
-			case ':': doubleSymbol(':', S_COLON, S_REFERENCE); break;
-			case '!': doubleSymbol('=', S_INEQUALITY, S_EXCLAMATION); break;
-			case '=': doubleSymbol('=', S_EQUALITY, S_EQUALS); break;
-			case '<': doubleSymbol('=', S_LTE, S_LT); break;
-			case '>': doubleSymbol('=', S_GTE, S_GT); break;
-			case '+': pos++; addSymbol(S_PLUS); break;
-			case '-': pos++; addSymbol(S_MINUS); break;
-			case '{': pos++; addSymbol(S_LBRACE); break;
-			case '}': pos++; addSymbol(S_RBRACE); break;
-			case '(': pos++; addSymbol(S_LPAREN); break;
-			case ')': pos++; addSymbol(S_RPAREN); break;
-			case '[': pos++; addSymbol(S_LBRACKET); break;
-			case ']': pos++; addSymbol(S_RBRACKET); break;
-			case ';': pos++; addSymbol(S_SEMICOLON); break;
-			case '.': pos++; addSymbol(S_DOT); break;
-			case '~': pos++; addSymbol(S_TILDE); break;
-			case '*': pos++; addSymbol(S_ASTERISK); break;
-			case ',': pos++; addSymbol(S_COMMA); break;
+			case '|': doubleSymbol('|', TOKEN_PIPE, TOKEN_LOGICAL_OR); break;
+			case '&': doubleSymbol('&', TOKEN_AMPERSAND, TOKEN_LOGICAL_AND); break;
+			case ':': doubleSymbol(':', TOKEN_COLON, TOKEN_REFERENCE); break;
+			case '!': doubleSymbol('=', TOKEN_INEQUALITY, TOKEN_EXCLAMATION); break;
+			case '=': doubleSymbol('=', TOKEN_EQUALITY, TOKEN_EQUALS); break;
+			case '<': doubleSymbol2('<', TOKEN_LSHIFT, '=', TOKEN_LTE, TOKEN_LT); break;
+			case '>': doubleSymbol2('>', TOKEN_RSHIFT, '=', TOKEN_GTE, TOKEN_GT); break;
+			case '^': pos++; addSymbol(TOKEN_CARET); break;
+			case '+': pos++; addSymbol(TOKEN_PLUS); break;
+			case '-': pos++; addSymbol(TOKEN_MINUS); break;
+			case '{': pos++; addSymbol(TOKEN_LBRACE); break;
+			case '}': pos++; addSymbol(TOKEN_RBRACE); break;
+			case '(': pos++; addSymbol(TOKEN_LPAREN); break;
+			case ')': pos++; addSymbol(TOKEN_RPAREN); break;
+			case '[': pos++; addSymbol(TOKEN_LBRACKET); break;
+			case ']': pos++; addSymbol(TOKEN_RBRACKET); break;
+			case ';': pos++; addSymbol(TOKEN_SEMICOLON); break;
+			case '.': pos++; addSymbol(TOKEN_DOT); break;
+			case '~': pos++; addSymbol(TOKEN_TILDE); break;
+			case '*': pos++; addSymbol(TOKEN_ASTERISK); break;
+			case ',': pos++; addSymbol(TOKEN_COMMA); break;
 
 			default: lexerError("Invalid ascii codepoint: %c", chars[pos]);
 		}
 	}
 
 	// Pad end with EOF tokens
-	for(int i = 0; i < 4; i++) addToken(T_END, 0);
+	for(int i = 0; i < 4; i++) addToken(TOKEN_END, 0);
+
+	int terminatorsSize = ((tokenCount + 7) * -8) >> 3;
 
 	inputSrcFile->tokens = eyreAlloc(tokenCount << 2);
 	inputSrcFile->tokenTypes = eyreAlloc(tokenCount);
 	inputSrcFile->tokenCount = tokenCount;
+	inputSrcFile->terminators = eyreAlloc(terminatorsSize);
+	inputSrcFile->terminatorsSize = terminatorsSize;
 
 	memcpy(inputSrcFile->tokens, tokens, tokenCount << 2);
 	memcpy(inputSrcFile->tokenTypes, tokenTypes, tokenCount);
+	memcpy(inputSrcFile->terminators, terminators, terminatorsSize);
 }
 
 
@@ -398,21 +419,21 @@ void eyrePrintTokens() {
 	for(int i = 0; i < tokenCount; i++) {
 		u8 type = tokenTypes[i];
 		u32 value = tokens[i];
-		if(type == T_INT) {
+		if(type == TOKEN_INT) {
 			printf("INT   %u\n", value);
-		} else if(type == T_ID) {
+		} else if(type == TOKEN_ID) {
 			Intern* intern = eyreGetIntern(value);
 			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->string, intern->id, intern->hash);
-		} else if(type == T_SYM) {
-			printf("SYM   %s\n", eyreTokenSymbolNames[value]);
-		} else if(type == T_CHAR) {
+		} else if(type == TOKEN_CHAR) {
 			char* escaped = reverseEscape((char) value);
 			if(escaped != NULL)
 				printf("CHAR  '%s' (%d)\n", escaped, value);
 			else
 				printf("CHAR  '%c' (%d)\n", value, value);
-		} else if(type == T_STRING) {
+		} else if(type == TOKEN_STRING) {
 			printf("STR   \"%s\"\n", eyreGetIntern(value)->string);
+		} else if(type >= TOKEN_SYM_START) {
+			printf("SYM   %s\n", eyreTokenNames[value]);
 		}
 	}
 }

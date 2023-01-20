@@ -137,12 +137,14 @@ void eyreInitInterns() {
 	for(int i = 0; i < KEYWORD_COUNT; i++)
 		addIntern(eyreKeywordNames[i]);
 	eyreKeywordInternEnd = eyreInternList.size;
+	eyreKeywordInternCount = eyreKeywordInternEnd - eyreKeywordInternStart;
 
 	// Widths
 	eyreWidthInternStart = eyreInternList.size;
 	for(int i = 0; i < WIDTH_COUNT; i++)
 		addIntern(eyreWidthNames[i]);
 	eyreWidthInternEnd = eyreInternList.size;
+	eyreWidthInternCount = eyreWidthInternEnd - eyreWidthInternStart;
 
 	// General-purpose registers
 	eyreRegisterInternStart = eyreInternList.size;
@@ -155,4 +157,12 @@ void eyreInitInterns() {
 	for(int i = 0; i < 16; i++)
 		addIntern(eyreQWordRegNames[i]);
 	eyreRegisterInternEnd = eyreInternList.size;
+	eyreRegisterInternCount = eyreRegisterInternEnd - eyreRegisterInternStart;
+
+	// Mnemonics
+	eyreMnemonicInternStart = eyreInternList.size;
+	for(int i = 0; i < MNEMONIC_COUNT; i++)
+		addIntern(eyreMnemonicNames[i]);
+	eyreMnemonicInternEnd = eyreInternList.size;
+	eyreMnemonicInternCount = eyreMnemonicInternEnd - eyreMnemonicInternStart;
 }
