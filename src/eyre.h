@@ -35,29 +35,55 @@ typedef enum EyreNodeType {
 	NODE_REG,
 	NODE_INT,
 	NODE_SYM,
-
-	NODE_ADD,
-	NODE_SUB,
-	NODE_DIV,
-	NODE_MUL,
-	NODE_AND,
-	NODE_OR,
-	NODE_XOR,
-
-	NODE_NEG,
-	NODE_POS,
-	NODE_NOT,
-
+	NODE_BINARY,
+	NODE_UNARY,
+	NODE_MEM,
+	NODE_IMM,
+	NODE_INS,
 	NODE_COUNT,
 } EyreNodeType;
 
 
 
 static char* eyreNodeNames[NODE_COUNT] = {
-	"REG", "INT", "SYM", "ADD",
-	"SUB", "DIV", "MUL", "AND",
-	"OR", "XOR", "NEG", "POS",
-	"NOT"
+	"REG", "INT", "SYM", "BINARY",
+	"UNARY", "MEM", "IMM", "INS",
+};
+
+
+
+typedef enum EyreUnaryOp {
+	UNARY_POS,
+	UNARY_NEG,
+	UNARY_NOT,
+	UNARY_COUNT
+} EyreUnaryOp;
+
+
+
+static char* eyreUnaryOpSymbols[UNARY_COUNT] = {
+	"+", "-", "~"
+};
+
+
+
+typedef enum EyreBinaryOp {
+	BINARY_ADD,
+	BINARY_SUB,
+	BINARY_MUL,
+	BINARY_DIV,
+	BINARY_AND,
+	BINARY_OR,
+	BINARY_XOR,
+	BINARY_SHL,
+	BINARY_SHR,
+	BINARY_COUNT
+} EyreBinaryOp;
+
+
+
+static char* eyreBinaryOpSymbols[BINARY_COUNT] = {
+	"+", "-", "*", "/", "&", "|", "^", "<<", ">>"
 };
 
 
@@ -209,11 +235,6 @@ typedef struct SrcFile {
 	char* path;
 	char* chars;
 	int   size;
-	char* tokenTypes;
-	int*  tokens;
-	int   tokenCount;
-	char* terminators;
-	int   terminatorsSize;
 } SrcFile;
 
 
@@ -258,21 +279,21 @@ Intern* eyreGetIntern(u32 id);
 
 void eyreInitInterns();
 
-static int eyreRegisterInternStart;
-static int eyreRegisterInternCount;
-static int eyreRegisterInternEnd;
+extern int eyreRegisterInternStart;
+extern int eyreRegisterInternCount;
+extern int eyreRegisterInternEnd;
 
-static int eyreKeywordInternStart;
-static int eyreKeywordInternCount;
-static int eyreKeywordInternEnd;
+extern int eyreKeywordInternStart;
+extern int eyreKeywordInternCount;
+extern int eyreKeywordInternEnd;
 
-static int eyreWidthInternStart;
-static int eyreWidthInternCount;
-static int eyreWidthInternEnd;
+extern int eyreWidthInternStart;
+extern int eyreWidthInternCount;
+extern int eyreWidthInternEnd;
 
-static int eyreMnemonicInternStart;
-static int eyreMnemonicInternCount;
-static int eyreMnemonicInternEnd;
+extern int eyreMnemonicInternStart;
+extern int eyreMnemonicInternCount;
+extern int eyreMnemonicInternEnd;
 
 
 
@@ -290,7 +311,11 @@ void eyrePrintTokens();
 
 
 
-void eyreParse(SrcFile* srcFile);
+void eyreParse();
+
+void eyrePrintNode(void* node);
+
+void eyrePrintNodes();
 
 
 

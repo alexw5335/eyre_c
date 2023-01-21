@@ -6,7 +6,7 @@
 typedef struct {
 	int intern;
 	int next;
-} Node;
+} InternNode;
 
 
 
@@ -46,7 +46,6 @@ static int addInternToList(char* string, int length, int hash, int copy) {
 	}
 
 
-
 	int id = eyreInternList.size;
 	Intern* interns = eyreInternList.data;
 	Intern* intern = &interns[eyreInternList.size++];
@@ -72,9 +71,9 @@ int eyreAddIntern(char* string, int length, int copy) {
 		return internId;
 	}
 
-	eyreCheckListCapacity(&nodeList, sizeof(Node));
+	eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 	Intern* interns = eyreInternList.data;
-	Node* nodes = nodeList.data;
+	InternNode* nodes = nodeList.data;
 
 	// Bucket contains a single intern
 	if((bucket & 1) == 0) {
@@ -87,12 +86,12 @@ int eyreAddIntern(char* string, int length, int copy) {
 		// Otherwise, the bucket is changed to refer to a linked list node
 		int internId = addInternToList(string, length, hash, copy);
 
-		eyreCheckListCapacity(&nodeList, sizeof(Node));
+		eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 		nodes[nodeList.size].intern = bucket >> 1;
 		nodes[nodeList.size].next = nodeList.size + 1;
 		nodeList.size++;
 
-		eyreCheckListCapacity(&nodeList, sizeof(Node));
+		eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 		nodes[nodeList.size].intern = internId;
 		nodes[nodeList.size].next = 0;
 		nodeList.size++;
@@ -104,7 +103,7 @@ int eyreAddIntern(char* string, int length, int copy) {
 
 	// Bucket refers to a linked list of interns
 	Intern intern;
-	Node* node = &nodes[bucket >> 1];
+	InternNode* node = &nodes[bucket >> 1];
 	while(1) {
 		intern = interns[node->intern];
 
@@ -116,7 +115,7 @@ int eyreAddIntern(char* string, int length, int copy) {
 		if(node->next == 0) {
 			int internId = addInternToList(string, length, hash, copy);
 			node->next = nodeList.size;
-			eyreCheckListCapacity(&nodeList, sizeof(Node));
+			eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 			nodes[nodeList.size].intern = internId;
 			nodes[nodeList.size].next = 0;
 			nodeList.size++;
@@ -126,6 +125,28 @@ int eyreAddIntern(char* string, int length, int copy) {
 		node = &nodes[node->next];
 	}
 }
+
+
+
+// Standard interns
+
+
+
+int eyreRegisterInternStart;
+int eyreRegisterInternCount;
+int eyreRegisterInternEnd;
+
+int eyreKeywordInternStart;
+int eyreKeywordInternCount;
+int eyreKeywordInternEnd;
+
+int eyreWidthInternStart;
+int eyreWidthInternCount;
+int eyreWidthInternEnd;
+
+int eyreMnemonicInternStart;
+int eyreMnemonicInternCount;
+int eyreMnemonicInternEnd;
 
 
 

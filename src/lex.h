@@ -1,15 +1,22 @@
-#include "eyre.h"
+#ifndef EYRE_LEX_INCLUDE
+#define EYRE_LEX_INCLUDE
+
+
 
 #define TOKEN_CAPACITY 66536
 
-static char tokenTypes[TOKEN_CAPACITY];
+extern char tokenTypes[TOKEN_CAPACITY];
 
-static int tokens[TOKEN_CAPACITY];
+extern int tokens[TOKEN_CAPACITY];
 
-static char newlines[TOKEN_CAPACITY >> 3];
+extern u8 newlines[TOKEN_CAPACITY >> 3];
 
-static char terminators[TOKEN_CAPACITY >> 3];
+extern u8 terminators[TOKEN_CAPACITY >> 3];
 
-static int tokenCount;
+extern int tokenCount;
 
-static int lineCount;
+extern int lineCount;
+
+
+
+#endif

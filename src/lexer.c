@@ -1,5 +1,5 @@
 #include "eyre.h"
-#include <stdlib.h>
+#include "lex.h"
 #include <mem.h>
 #include "log.h"
 
@@ -23,21 +23,10 @@ static u8 idMap[32] = {
 
 
 
-#define tokenCapacity 65536
 
 #define stringBuilderCapacity 8192
 
 static SrcFile srcFile;
-
-static u32 tokens[tokenCapacity];
-
-static u8 tokenTypes[tokenCapacity];
-
-static u8 newlines[tokenCapacity >> 3];
-
-static u8 terminators[tokenCapacity >> 3];
-
-static int tokenCount;
 
 static int pos = 0;
 
@@ -45,14 +34,25 @@ static char* chars;
 
 static int size;
 
-static int lineCount;
-
 static char stringBuilder[stringBuilderCapacity];
 
 
+
+char tokenTypes[TOKEN_CAPACITY];
+
+int tokens[TOKEN_CAPACITY];
+
+u8 newlines[TOKEN_CAPACITY >> 3];
+
+u8 terminators[TOKEN_CAPACITY >> 3];
+
+int tokenCount;
+
+int lineCount;
+
+
+
 #define lexerError(format, ...) lexerError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
-
-
 
 static void lexerError_(char* format, char* file, int line, ...) {
 	fprintf(stderr, "Lexer error at %s:%d: ", srcFile.path, lineCount);
@@ -72,7 +72,7 @@ static inline int isIdChar(char c) {
 
 
 static inline void setTerminator() {
-	terminators[tokenCount >> 3] &= (1 << (tokenCount & 7));
+	terminators[tokenCount >> 3] |= (1 << (tokenCount & 7));
 }
 
 
@@ -83,9 +83,9 @@ static inline void setNewline() {
 
 
 
-static void addToken(EyreTokenType type, u32 value) {
-	if(tokenCount >= tokenCapacity)
-		lexerError("Too many tokens: %d", tokenCapacity); // May only happen with a massive file
+static void addToken(EyreTokenType type, int value) {
+	if(tokenCount >= TOKEN_CAPACITY)
+		lexerError("Too many tokens: %d", TOKEN_CAPACITY);
 	tokenTypes[tokenCount] = type;
 	tokens[tokenCount] = value;
 	tokenCount++;
@@ -127,7 +127,7 @@ static void parseBinary() {
 	if(isIdChar(chars[pos]))
 		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
 
-	addToken(TOKEN_INT, (u32) number);
+	addToken(TOKEN_INT, (int) number);
 }
 
 
@@ -166,7 +166,7 @@ static void parseHex() {
 	if(isIdChar(chars[pos]))
 		lexerError("Invalid value char: %d ('%c')", chars[pos], chars[pos]);
 
-	addToken(TOKEN_INT, (u32) value);
+	addToken(TOKEN_INT, (int) value);
 }
 
 
@@ -198,7 +198,7 @@ static void parseDecimal() {
 	if(isIdChar(chars[pos]))
 		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
 
-	addToken(TOKEN_INT, (u32) number);
+	addToken(TOKEN_INT, (int) number);
 }
 
 
@@ -456,19 +456,9 @@ void eyreLex(SrcFile* inputSrcFile) {
 	}
 
 	// Pad end with EOF tokens
-	for(int i = 0; i < 4; i++) addToken(TOKEN_END, 0);
-
-	int terminatorsSize = ((tokenCount + 7) & -8) >> 3;
-
-	inputSrcFile->tokens = eyreAlloc(tokenCount << 2);
-	inputSrcFile->tokenTypes = eyreAlloc(tokenCount);
-	inputSrcFile->tokenCount = tokenCount;
-	inputSrcFile->terminators = eyreAlloc(terminatorsSize);
-	inputSrcFile->terminatorsSize = terminatorsSize;
-
-	memcpy(inputSrcFile->tokens, tokens, tokenCount << 2);
-	memcpy(inputSrcFile->tokenTypes, tokenTypes, tokenCount);
-	memcpy(inputSrcFile->terminators, terminators, terminatorsSize);
+	for(int i = 0; i < 4; i++) {
+		setTerminator();
+	}
 }
 
 

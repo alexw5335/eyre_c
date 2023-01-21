@@ -7,7 +7,7 @@
 
 
 
-void error(char* format, ...) {
+static void error(char* format, ...) {
 	va_list list;
 	va_start(list, format);
 	vfprintf(stderr, format, list);
@@ -17,15 +17,15 @@ void error(char* format, ...) {
 
 
 
-char* chars;
+static char* chars;
 
-int size;
+static int size;
 
-int pos;
+static int pos;
 
 
 
-void readFile(char* path) {
+static void readFile(char* path) {
 	HANDLE handle = CreateFileA(
 		path,
 		GENERIC_READ,
@@ -51,7 +51,7 @@ void readFile(char* path) {
 
 
 
-char* getLocalFile(char* fileName) {
+static char* getLocalFile(char* fileName) {
 	int fileNameLength = (int) strlen(fileName);
 	int length = (int) GetCurrentDirectoryA(0, NULL);
 	char* file = malloc(length + fileNameLength);
@@ -75,7 +75,7 @@ char* getLocalFile(char* fileName) {
 
 
 
-int parseHex(unsigned char c) {
+static int parseHex(unsigned char c) {
 	if(c >= '0' && c <= '9')
 		return c - '0';
 	if(c >= 'a' && c <= 'f')
@@ -88,7 +88,7 @@ int parseHex(unsigned char c) {
 
 
 
-int parseHexString(char* string, int length) {
+static int parseHexString(char* string, int length) {
 	int value = 0;
 	for(int i = 0; i < length; i++)
 		value = (value << 4) | parseHex(string[i]);
@@ -97,7 +97,7 @@ int parseHexString(char* string, int length) {
 
 
 
-void parse(char* path) {
+static void parse(char* path) {
 	readFile(getLocalFile(path));
 
 	while(pos < size) {
@@ -140,10 +140,4 @@ void parse(char* path) {
 		printf("%x %.*s\n", opcode, mnemonicLength, mnemonicString);
 		while(chars[pos++] != '\n') { }
 	}
-}
-
-
-
-int main() {
-	parse("gen/encodings.txt");
 }

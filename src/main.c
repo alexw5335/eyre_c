@@ -6,4 +6,6 @@ int main() {
 	eyreCreateSrcFile(&file, eyreGetLocalFile("test.txt"));
 	eyreLex(&file);
 	eyrePrintTokens();
+	eyreParse();
+	eyrePrintNodes();
 }
