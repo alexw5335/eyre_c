@@ -25,4 +25,5 @@ target_compile_definitions(
 add_executable(
         gen
         gen/generator.c
+        gen/defs.h
 )

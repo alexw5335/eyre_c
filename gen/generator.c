@@ -4,36 +4,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <processenv.h>
+#include "defs.h"
 
 
 
-
-
-
-
-
-static char stringBuilder[512];
-
-static char* chars;
-
-static int size;
-
-static int pos;
-
-
-
-static void println(char* format, ...) {
-	va_list list;
-	va_start(list, format);
-	int length = vsprintf(stringBuilder, format, list);
-	stringBuilder[length++] = '\n';
-	stringBuilder[length++] = 0;
-	printf("%s", stringBuilder);
-}
-
-
-
-static void error(char* format, ...) {
+void error(char* format, ...) {
 	va_list list;
 	va_start(list, format);
 	vfprintf(stderr, format, list);
@@ -43,7 +18,35 @@ static void error(char* format, ...) {
 
 
 
-static void readFile(char* path) {
+// Variables
+
+
+
+char* chars;
+
+int size;
+
+int pos;
+
+#define MNEMONICS_CAPACITY 512
+int mnemonicCount;
+Mnemonic mnemonics[MNEMONICS_CAPACITY];
+
+#define ENCODINGS_CAPACITY 1024
+int encodingCount;
+Encoding encodings[ENCODINGS_CAPACITY];
+
+#define GROUPS_CAPACITY 512
+int groupCount;
+EncodingGroup groups[GROUPS_CAPACITY];
+
+
+
+// File
+
+
+
+void readFile(char* path) {
 	HANDLE handle = CreateFileA(
 		path,
 		GENERIC_READ,
@@ -69,7 +72,7 @@ static void readFile(char* path) {
 
 
 
-static char* getLocalFile(char* fileName) {
+char* getLocalFile(char* fileName) {
 	int fileNameLength = (int) strlen(fileName);
 	int length = (int) GetCurrentDirectoryA(0, NULL);
 	char* file = malloc(length + fileNameLength);
@@ -93,7 +96,39 @@ static char* getLocalFile(char* fileName) {
 
 
 
-static int parseHex(unsigned char c) {
+// Parsing utils
+
+
+
+void skipSpaces() {
+	while(chars[pos] == ' ') pos++;
+}
+
+
+
+void skipLine() {
+	while(chars[pos++] != '\n') { }
+}
+
+
+
+int atNewline() {
+	return chars[pos] == '\r' || chars[pos] == '\n';
+}
+
+
+
+int isWhitespace(char c) {
+	return c == ' ' || c == '\r' || c == '\n' || c == '\t';
+}
+
+
+
+// Integer parsing
+
+
+
+int parseHex(unsigned char c) {
 	if(c >= '0' && c <= '9')
 		return c - '0';
 	if(c >= 'a' && c <= 'f')
@@ -106,7 +141,7 @@ static int parseHex(unsigned char c) {
 
 
 
-static int parseHexString(char* string, int length) {
+int parseHexString(char* string, int length) {
 	int value = 0;
 	for(int i = 0; i < length; i++)
 		value = (value << 4) | parseHex(string[i]);
@@ -115,254 +150,232 @@ static int parseHexString(char* string, int length) {
 
 
 
-typedef unsigned long long u64;
+// String parsing
 
 
 
-u64 makeAscii8(char* string, int length) {
-	if(length > 7)
-		error("String too long: %.*s", length, string);
-
-	u64 value = 0;
-
-	for(int i = length - 1; i >= 0; i--)
-		value = (value << 8) | string[i];
-
-	return value;
-}
-
-
-
-u64 parseAscii8() {
+int stringLength() {
 	char* string = &chars[pos];
 	int length = 0;
-	while(string[length] != ' ' && string[length] != '\n') length++;
-	pos += length;
-	return makeAscii8(string, length);
-}
-
-
-
-typedef struct {
-	char chars[16];
-} Mnemonic;
-
-
-
-typedef enum {
-	OPERANDS_NONE,
-	OPERANDS_R,
-	OPERANDS_M,
-	OPERANDS_R_R,
-	OPERANDS_R_M,
-	OPERANDS_M_R,
-	OPERANDS_R_I,
-	OPERANDS_M_I,
-	OPERANDS_R_I8,
-	OPERANDS_M_I8,
-	OPERANDS_COUNT,
-} Operands;
-
-
-
-typedef enum {
-	OPERANDS2_RM_R,
-	OPERANDS2_R_RM,
-	OPERANDS2_RM_I,
-	OPERANDS2_RM_I8,
-	OPERANDS2_COUNT,
-} CompoundOperands;
-
-typedef enum {
-	WIDTHS_NO8,
-} Widths;
-
-char* operandsNames[OPERANDS_COUNT] = {
-	"NONE", "R", "M", "R_R", "R_M", "M_R"
-};
-
-char* compoundOperandsNames[OPERANDS2_COUNT] = {
-	"RM_R", "R_RM", "RM_I", "RM_I8"
-};
-
-u64 operandsAscii8[OPERANDS_COUNT];
-
-u64 compoundOperandsAscii8[OPERANDS2_COUNT];
-
-#define operandsBit(operands) (1 << operands)
-
-void init() {
-	for(int i = 0; i < OPERANDS2_COUNT; i++) {
-		char* name = compoundOperandsNames[i];
-		compoundOperandsAscii8[i] = makeAscii8(name, strlen(name));
+	while(1) {
+		char c = string[length];
+		if(isWhitespace(c)) break;
+		length++;
 	}
+	return length;
 }
 
 
 
-typedef struct {
-	int      mnemonic;
-	int      opcode;
-	int      extension;
-	Operands operands;
-	Widths   widths;
-} Encoding;
+char* parseString(int length) {
+	char* string = &chars[pos];
+	pos += length;
+	return string;
+}
 
 
 
-typedef struct {
-	int   mnemonic;
-	int   operandsBits;
-	int   specificBits;
-	short encodings[32];
-} EncodingGroup;
+// Struct creation
 
 
 
-#define ENCODINGS_CAPACITY 1024
-#define MNEMONICS_CAPACITY 512
-#define GROUPS_CAPACITY 512
+int addEncoding(int mnemonic, int opcode, int extension, Operands operands, int widths) {
+	if(encodingCount >= ENCODINGS_CAPACITY)
+		error("Too many encodings");
 
-int mnemonicsSize;
-Mnemonic mnemonics[MNEMONICS_CAPACITY];
+	Encoding* encoding  = &encodings[encodingCount++];
+	encoding->mnemonic  = mnemonic;
+	encoding->opcode    = opcode;
+	encoding->extension = extension;
+	encoding->operands  = operands;
+	encoding->widths    = widths;
 
-int encodingsSize;
-Encoding encodings[ENCODINGS_CAPACITY];
-
-int groupsSize;
-EncodingGroup groups[GROUPS_CAPACITY];
+	return encodingCount - 1;
+}
 
 
 
 int addMnemonic(char* string, int length) {
-	Mnemonic mnemonic = { };
+	for(int i = 0; i < mnemonicCount; i++)
+		if(length == strlen(mnemonics[i].chars) && memcmp(string, mnemonics[i].chars, length) == 0)
+			return i;
 
-	for(int i = 0; i < length; i++)
-		mnemonic.chars[i] = string[i];
+	memcpy(mnemonics[mnemonicCount++].chars, string, length);
 
-	int index = mnemonicsSize;
+	return mnemonicCount - 1;
+}
 
-	for(int i = 0; i < mnemonicsSize; i++) {
-		if(memcmp(mnemonic.chars, mnemonics[i].chars, 16) == 0) {
-			index = i;
-			break;
-		}
+
+
+// Parsing
+
+
+
+int parseOperands(char* string, int length) {
+	for(int i = 0; i < OPERANDS_COUNT; i++)
+		if(length == strlen(operandsNames[i]) && memcmp(string, operandsNames[i], length) == 0)
+			return i;
+
+	return -1;
+}
+
+
+
+int parseCompound(char* string, int length) {
+	for(int i = 0; i < COMPOUND_COUNT; i++)
+		if(length == strlen(compoundNames[i]) && memcmp(string, compoundNames[i], length) == 0)
+			return i;
+
+	return -1;
+}
+
+
+
+int parseOpcode() {
+	char* opcodeString = &chars[pos];
+	int opcodeLength = 0;
+	while(opcodeString[opcodeLength] != ' ' && opcodeString[opcodeLength] != '/') opcodeLength++;
+	pos += opcodeLength;
+	return parseHexString(opcodeString, opcodeLength);
+}
+
+
+
+int parseExtension() {
+	if(chars[pos] != '/') return 0;
+	pos++;
+	int extension = chars[pos++] - '0';
+	if(extension < 0 || extension > 9)
+		error("Invalid extension: %d", extension);
+	return extension;
+}
+
+
+
+int parseMnemonic() {
+	int mnemonicLength = stringLength();
+	char* mnemonicString = parseString(mnemonicLength);
+	return addMnemonic(mnemonicString, mnemonicLength);
+}
+
+
+
+int parseWidths() {
+	if(atNewline()) return 0;
+	if(chars[pos] != '0' && chars[pos] != '1') return 0;
+	int widths = 0;
+	for(int i = 0; i < 4; i++) {
+		char c = chars[pos++];
+		if(c == '1')
+			widths |= (1 << i);
+		else if(c != '0')
+			error("Invalid widths char: %d", c);
 	}
-
-	if(index == mnemonicsSize)
-		mnemonics[mnemonicsSize++] = mnemonic;
-
-	return index;
+	return widths;
 }
 
 
 
-static inline void skipSpaces() {
-	while(chars[pos] == ' ') pos++;
-}
+// Parsing
 
 
 
-static inline void skipLine() {
-	while(chars[pos++] != '\n') { }
-}
-
-
-
-static inline int atNewline() {
-	return chars[pos] == '\r' || chars[pos] == '\n';
-}
-
-
-
-static int parseOperands() {
-	u64 value = parseAscii8();
-
-	for(int i = 0; i < OPERANDS2_COUNT; i++) {
-		if(value != compoundOperandsAscii8[i]) continue;
-
-		switch(i) {
-			case OPERANDS2_RM_R:  return operandsBit(OPERANDS_R_R)  | operandsBit(OPERANDS_M_R);
-			case OPERANDS2_R_RM:  return operandsBit(OPERANDS_R_R)  | operandsBit(OPERANDS_R_M);
-			case OPERANDS2_RM_I:  return operandsBit(OPERANDS_R_I)  | operandsBit(OPERANDS_M_I);
-			case OPERANDS2_RM_I8: return operandsBit(OPERANDS_R_I8) | operandsBit(OPERANDS_M_I8);
-		}
-	}
-
-	for(int i = 0; i < OPERANDS_COUNT; i++) {
-		if(value != operandsAscii8[i]) continue;
-	}
-
-}
-
-
-
-static void parse(char* path) {
-	init();
+void parse(char* path) {
 	readFile(getLocalFile(path));
 
 	while(pos < size) {
 		char c = chars[pos];
 
-		if(c == ';')
-			break;
+		if(c == ';') break;
 
-		if(c == '\n' || c == '\r') {
+		if(isWhitespace(c)) {
 			pos++;
 			continue;
 		}
 
 		if(c == '#') {
-			while(chars[pos++] != '\n') { }
+			skipLine();
 			continue;
 		}
 
-		char* opcodeString = &chars[pos];
-		int opcodeLength = 0;
-		while(opcodeString[opcodeLength] != ' ' && opcodeString[opcodeLength] != '/') opcodeLength++;
-		pos += opcodeLength;
-		int opcode = parseHexString(opcodeString, opcodeLength);
-		int extension = 0;
-
-		if(chars[pos] == '/') {
-			pos++;
-			extension = chars[pos++] - '0';
-			if(extension < 0 || extension > 9)
-				error("Invalid extension: %d", extension);
-		}
-
-		while(chars[pos] == ' ') pos++;
-
-		char* mnemonicString = &chars[pos];
-		int mnemonicLength = 0;
-		while(mnemonicString[mnemonicLength] != ' ' && mnemonicString[mnemonicLength] != '\n') mnemonicLength++;
-		pos += mnemonicLength;
-
-		int mnemonic = addMnemonic(mnemonicString, mnemonicLength);
-
-		int operands;
-		u64 widthsString;
-
+		int opcode = parseOpcode();
+		int extension = parseExtension();
 		skipSpaces();
-		if(!atNewline()) {
-			operands = parseOperands();
-			skipSpaces();
-			if(!atNewline())
-				widthsString = parseAscii8();
-		}
 
+		int mnemonic = parseMnemonic();
+		skipSpaces();
+
+		int operandsLength = stringLength();
+		char* operandsString = parseString(operandsLength);
+		int operands = parseOperands(operandsString, operandsLength);
+		int compound = parseCompound(operandsString, operandsLength);
+		skipSpaces();
+
+		int widths = parseWidths();
 		skipLine();
-	}
 
-	for(int i = 0; i < mnemonicsSize; i++) {
-		//printf("%s\n", mnemonics[i].chars);
-		//printf("%s, ", mnemonics[i].chars);
-		//if(i % 4 == 3) printf("\n");
+		if(compound >= 0) {
+			Operands* compoundOperands = compoundMap[compound];
+			for(int i = 0; i < 5; i++) {
+				if(compoundOperands[i] == 0) break;
+				addEncoding(mnemonic, opcode, extension, compoundOperands[i], widths);
+			}
+		} else if(operands >= 0) {
+			addEncoding(mnemonic, opcode, extension, operands, widths);
+		} else if(operandsLength == 0) {
+			addEncoding(mnemonic, opcode, extension, OPERANDS_NONE, widths);
+		} else {
+			error("Invalid operands: %.*s", operandsLength, operandsString);
+		}
 	}
+}
+
+
+
+void printEncodings(){
+	for(int i = 0; i < encodingCount; i++) {
+		Encoding encoding = encodings[i];
+		char* mnemonic = mnemonics[encoding.mnemonic].chars;
+		printf("%x/%d %s", encoding.opcode, encoding.extension, mnemonic);
+		if(encoding.operands >= 0)
+			printf(" %s", operandsNames[encoding.operands]);
+		if(encoding.widths > 0)
+			printf(" %d", encoding.widths);
+		printf("\n");
+	}
+}
+
+
+
+void printMnemonics() {
+	printf("typedef enum EyreMnemonic {\n");
+	for(int i = 0; i < mnemonicCount; i++) {
+		if(i % 4 == 0) printf("\t");
+		printf("MNEMONIC_%s, ", mnemonics[i].chars);
+		if(i % 4 == 3) printf("\n");
+	}
+	if(mnemonicCount % 4 != 3) printf("\n");
+	printf("\tMNEMONIC_COUNT\n");
+	printf("} EyreMnemonic;\n");
+
+	printf("\nstatic char* eyreMnemonicNames[MNEMONIC_COUNT] = {");
+	for(int i = 0; i < mnemonicCount; i++) {
+		char lowercase[16];
+		for(int j = 0; j < 16; j++) {
+			char c = mnemonics[i].chars[j];
+			if(c >= 'A' && c <= 'Z') lowercase[j] = c - 'A' + 'a'; else lowercase[j] = c;
+		}
+		if(i % 4 == 0) printf("\t");
+		printf("\"%s\", ", lowercase);
+		if(i % 4 == 3) printf("\n");
+	}
+	if(mnemonicCount % 4 != 3) printf("\n");
+	printf("};\n");
 }
 
 
 
 int main() {
 	parse("gen/encodings.txt");
+	printEncodings();
 }

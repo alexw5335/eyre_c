@@ -1,1 +1,1 @@
-add rax, 1 + 2 * 3
+mov rax, 10
