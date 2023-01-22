@@ -7,7 +7,7 @@
 83/6  XOR8  RM_I8  NO8
 83/7  CMP8  RM_I8  NO8
 EB    JMP8  REL8
-
+;
 04    ADD  A_I    ALL
 80/0  ADD  RM_I   ALL
 83/0  ADD  RM_I8  NO8

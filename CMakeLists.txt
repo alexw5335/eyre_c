@@ -13,7 +13,6 @@ add_executable(
         src/parser.c
         src/log.h
         src/log.c
-        src/generator.c
         src/lex.h
 )
 
@@ -21,4 +20,9 @@ target_compile_definitions(
         eyre
         PUBLIC
         EYRE_LOG_ALL
+)
+
+add_executable(
+        gen
+        gen/generator.c
 )
