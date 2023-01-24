@@ -5,6 +5,34 @@
 
 
 
+char* eyreTokenSymbols[TOKEN_COUNT] = {
+	"","","","","","",
+	"+","-","=","==",
+	"!=","!","(",")",
+	"[","]","{","}",
+	";",":","<","<=",
+	">",">=",".","/",
+	"~","|","&","*",
+	"::","&&","||",",",
+	"<<", ">>", "^",
+};
+
+
+
+char* eyreTokenNames[TOKEN_COUNT] = {
+	"END","INT","LONG","CHAR","STRING","ID",
+	"PLUS","MINUS","EQUALS","EQUALITY",
+	"INEQUALITY","EXCLAMATION","LPAREN","RPAREN",
+	"LBRACKET","RBRACKET","LBRACE","RBRACE",
+	"SEMICOLON","COLON","LT","LTE",
+	"GT","GTE","DOT","SLASH",
+	"TILDE","PIPE","AMPERSAND","ASTERISK",
+	"REFERENCE","LOGICAL_AND","LOGICAL_OR","COMMA",
+	"LSHIFT", "RSHIFT", "CARET",
+};
+
+
+
 // Bitmap of valid identifier chars (a-z, A-Z, 0-9, _)
 static u8 idMap[32] = {
 	0,0,0,0,0,0,
@@ -24,7 +52,7 @@ static u8 idMap[32] = {
 
 
 
-#define stringBuilderCapacity 8192
+#define STRING_BUILDER_CAPACITY 8192
 
 static SrcFile srcFile;
 
@@ -34,13 +62,15 @@ static char* chars;
 
 static int size;
 
-static char stringBuilder[stringBuilderCapacity];
+static char stringBuilder[STRING_BUILDER_CAPACITY];
 
 
 
 char tokenTypes[TOKEN_CAPACITY];
 
 int tokens[TOKEN_CAPACITY];
+
+short tokenLines[TOKEN_CAPACITY];
 
 u8 newlines[TOKEN_CAPACITY >> 3];
 
@@ -60,7 +90,7 @@ static void lexerError_(char* format, char* file, int line, ...) {
 	va_start(args, line);
 	vfprintf(stderr, format, args);
 	fprintf(stderr, "\n");
-	eyreLogError_("Lexer error", file, line);
+	eyreError_("Lexer error", file, line);
 }
 
 
@@ -88,6 +118,7 @@ static void addToken(EyreTokenType type, int value) {
 		lexerError("Too many tokens: %d", TOKEN_CAPACITY);
 	tokenTypes[tokenCount] = type;
 	tokens[tokenCount] = value;
+	tokenLines[tokenCount] = lineCount;
 	tokenCount++;
 }
 
@@ -481,7 +512,7 @@ void eyrePrintTokens() {
 		} else if(type == TOKEN_STRING) {
 			printf("STR   \"%s\"\n", eyreGetIntern(value)->string);
 		} else if(type >= TOKEN_SYM_START) {
-			printf("SYM   %s\n", eyreTokenNames[type]);
+			printf("SYM   %s\n", eyreTokenSymbols[type]);
 		}
 	}
 }

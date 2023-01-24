@@ -5,10 +5,11 @@
 #include <stdarg.h>
 #include <processenv.h>
 #include "defs.h"
+#include "gen.h"
 
 
 
-void error(char* format, ...) {
+static void error(char* format, ...) {
 	va_list list;
 	va_start(list, format);
 	vfprintf(stderr, format, list);
@@ -22,23 +23,19 @@ void error(char* format, ...) {
 
 
 
-char* chars;
+static char* chars;
 
-int size;
+static int size;
 
-int pos;
-
-#define MNEMONICS_CAPACITY 512
-int mnemonicCount;
-Mnemonic mnemonics[MNEMONICS_CAPACITY];
+static int pos;
 
 #define ENCODINGS_CAPACITY 1024
-int encodingCount;
-Encoding encodings[ENCODINGS_CAPACITY];
+static int encodingCount;
+static EyreGenEncoding encodings[ENCODINGS_CAPACITY];
 
 #define GROUPS_CAPACITY 512
-int groupCount;
-EncodingGroup groups[GROUPS_CAPACITY];
+static int groupCount;
+static EyreGenGroup groups[GROUPS_CAPACITY];
 
 
 
@@ -46,7 +43,7 @@ EncodingGroup groups[GROUPS_CAPACITY];
 
 
 
-void readFile(char* path) {
+static void readFile(char* path) {
 	HANDLE handle = CreateFileA(
 		path,
 		GENERIC_READ,
@@ -72,7 +69,7 @@ void readFile(char* path) {
 
 
 
-char* getLocalFile(char* fileName) {
+static char* getLocalFile(char* fileName) {
 	int fileNameLength = (int) strlen(fileName);
 	int length = (int) GetCurrentDirectoryA(0, NULL);
 	char* file = malloc(length + fileNameLength);
@@ -100,25 +97,25 @@ char* getLocalFile(char* fileName) {
 
 
 
-void skipSpaces() {
+static void skipSpaces() {
 	while(chars[pos] == ' ') pos++;
 }
 
 
 
-void skipLine() {
+static void skipLine() {
 	while(chars[pos++] != '\n') { }
 }
 
 
 
-int atNewline() {
+static int atNewline() {
 	return chars[pos] == '\r' || chars[pos] == '\n';
 }
 
 
 
-int isWhitespace(char c) {
+static int isWhitespace(char c) {
 	return c == ' ' || c == '\r' || c == '\n' || c == '\t';
 }
 
@@ -128,7 +125,7 @@ int isWhitespace(char c) {
 
 
 
-int parseHex(unsigned char c) {
+static int parseHex(unsigned char c) {
 	if(c >= '0' && c <= '9')
 		return c - '0';
 	if(c >= 'a' && c <= 'f')
@@ -141,7 +138,7 @@ int parseHex(unsigned char c) {
 
 
 
-int parseHexString(char* string, int length) {
+static int parseHexString(char* string, int length) {
 	int value = 0;
 	for(int i = 0; i < length; i++)
 		value = (value << 4) | parseHex(string[i]);
@@ -154,7 +151,7 @@ int parseHexString(char* string, int length) {
 
 
 
-int stringLength() {
+static int stringLength() {
 	char* string = &chars[pos];
 	int length = 0;
 	while(1) {
@@ -167,7 +164,7 @@ int stringLength() {
 
 
 
-char* parseString(int length) {
+static char* parseString(int length) {
 	char* string = &chars[pos];
 	pos += length;
 	return string;
@@ -179,30 +176,40 @@ char* parseString(int length) {
 
 
 
-int addEncoding(int mnemonic, int opcode, int extension, Operands operands, int widths) {
+static int addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOperands operands, int widths) {
 	if(encodingCount >= ENCODINGS_CAPACITY)
 		error("Too many encodings");
 
-	Encoding* encoding  = &encodings[encodingCount++];
-	encoding->mnemonic  = mnemonic;
+	EyreGenEncoding* encoding  = &encodings[encodingCount++];
+	encoding->mnemonic  = group->mnemonic;
 	encoding->opcode    = opcode;
 	encoding->extension = extension;
 	encoding->operands  = operands;
 	encoding->widths    = widths;
+
+	if(group->encodingCount >= 32)
+		error("Too many encodings for mnemonic %s", group->mnemonic);
+
+	group->encodings[group->encodingCount++] = encoding;
+	group->operandsBits |= (1 << encoding->operands);
+	group->specifierBits |= (1 << eyreOperandsSpecifiers[encoding->operands]);
 
 	return encodingCount - 1;
 }
 
 
 
-int addMnemonic(char* string, int length) {
-	for(int i = 0; i < mnemonicCount; i++)
-		if(length == strlen(mnemonics[i].chars) && memcmp(string, mnemonics[i].chars, length) == 0)
-			return i;
+static EyreGenGroup* addGroup(char* string, int length) {
+	for(int i = 0; i < groupCount; i++)
+		if(length == strlen(groups[i].mnemonic) && memcmp(string, groups[i].mnemonic, length) == 0)
+			return &groups[i];
 
-	memcpy(mnemonics[mnemonicCount++].chars, string, length);
+	if(groupCount >= GROUPS_CAPACITY)
+		error("Too many groups");
 
-	return mnemonicCount - 1;
+	EyreGenGroup* group = &groups[groupCount++];
+	memcpy(group->mnemonic, string, length);
+	return group;
 }
 
 
@@ -211,9 +218,9 @@ int addMnemonic(char* string, int length) {
 
 
 
-int parseOperands(char* string, int length) {
+static int parseOperands(char* string, int length) {
 	for(int i = 0; i < OPERANDS_COUNT; i++)
-		if(length == strlen(operandsNames[i]) && memcmp(string, operandsNames[i], length) == 0)
+		if(length == strlen(eyreOperandsNames[i]) && memcmp(string, eyreOperandsNames[i], length) == 0)
 			return i;
 
 	return -1;
@@ -221,9 +228,9 @@ int parseOperands(char* string, int length) {
 
 
 
-int parseCompound(char* string, int length) {
+static int parseCompound(char* string, int length) {
 	for(int i = 0; i < COMPOUND_COUNT; i++)
-		if(length == strlen(compoundNames[i]) && memcmp(string, compoundNames[i], length) == 0)
+		if(length == strlen(eyreCompoundOperandsNames[i]) && memcmp(string, eyreCompoundOperandsNames[i], length) == 0)
 			return i;
 
 	return -1;
@@ -231,7 +238,7 @@ int parseCompound(char* string, int length) {
 
 
 
-int parseOpcode() {
+static int parseOpcode() {
 	char* opcodeString = &chars[pos];
 	int opcodeLength = 0;
 	while(opcodeString[opcodeLength] != ' ' && opcodeString[opcodeLength] != '/') opcodeLength++;
@@ -241,7 +248,7 @@ int parseOpcode() {
 
 
 
-int parseExtension() {
+static int parseExtension() {
 	if(chars[pos] != '/') return 0;
 	pos++;
 	int extension = chars[pos++] - '0';
@@ -252,15 +259,15 @@ int parseExtension() {
 
 
 
-int parseMnemonic() {
+static EyreGenGroup* parseGroup() {
 	int mnemonicLength = stringLength();
 	char* mnemonicString = parseString(mnemonicLength);
-	return addMnemonic(mnemonicString, mnemonicLength);
+	return addGroup(mnemonicString, mnemonicLength);
 }
 
 
 
-int parseWidths() {
+static int parseWidths() {
 	if(atNewline()) return 0;
 	if(chars[pos] != '0' && chars[pos] != '1') return 0;
 	int widths = 0;
@@ -280,7 +287,7 @@ int parseWidths() {
 
 
 
-void parse(char* path) {
+void eyreParseEncodings(char* path) {
 	readFile(getLocalFile(path));
 
 	while(pos < size) {
@@ -302,7 +309,7 @@ void parse(char* path) {
 		int extension = parseExtension();
 		skipSpaces();
 
-		int mnemonic = parseMnemonic();
+		EyreGenGroup* group = parseGroup();
 		skipSpaces();
 
 		int operandsLength = stringLength();
@@ -315,15 +322,15 @@ void parse(char* path) {
 		skipLine();
 
 		if(compound >= 0) {
-			Operands* compoundOperands = compoundMap[compound];
+			EyreOperands* compoundOperands = eyreCompoundOperandsMap[compound];
 			for(int i = 0; i < 5; i++) {
 				if(compoundOperands[i] == 0) break;
-				addEncoding(mnemonic, opcode, extension, compoundOperands[i], widths);
+				addEncoding(group, opcode, extension, compoundOperands[i], widths);
 			}
 		} else if(operands >= 0) {
-			addEncoding(mnemonic, opcode, extension, operands, widths);
+			addEncoding(group, opcode, extension, operands, widths);
 		} else if(operandsLength == 0) {
-			addEncoding(mnemonic, opcode, extension, OPERANDS_NONE, widths);
+			addEncoding(group, opcode, extension, OPERANDS_NONE, widths);
 		} else {
 			error("Invalid operands: %.*s", operandsLength, operandsString);
 		}
@@ -332,50 +339,66 @@ void parse(char* path) {
 
 
 
-void printEncodings(){
-	for(int i = 0; i < encodingCount; i++) {
-		Encoding encoding = encodings[i];
-		char* mnemonic = mnemonics[encoding.mnemonic].chars;
-		printf("%x/%d %s", encoding.opcode, encoding.extension, mnemonic);
-		if(encoding.operands >= 0)
-			printf(" %s", operandsNames[encoding.operands]);
-		if(encoding.widths > 0)
-			printf(" %d", encoding.widths);
-		printf("\n");
+void eyreGenGroups() {
+	printf("#include \"eyre_defs.h\"\n\n");
+
+	for(int i = 0; i < groupCount; i++) {
+		EyreGenGroup g = groups[i];
+
+		printf("static EyreEncoding EYRE_ENCODINGS_%s[] = {\n", g.mnemonic);
+		for(int j = 0; j < g.encodingCount; j++) {
+			EyreGenEncoding* e = g.encodings[j];
+			printf("\t{ %d, %d, %d, %d },\n", e->opcode, e->extension, 0, e->widths);
+		}
+		printf("};\n\n");
 	}
+
+	printf("static EyreGroup eyreEncodings[] = {\n");
+	for(int i = 0; i < groupCount; i++) {
+		EyreGenGroup g = groups[i];
+		printf("\t{ %d, %d, EYRE_ENCODINGS_%s },\n", g.operandsBits, g.specifierBits, g.mnemonic);
+	}
+	printf("};\n");
 }
 
 
 
-void printMnemonics() {
+void eyreGenMnemonics() {
 	printf("typedef enum EyreMnemonic {\n");
-	for(int i = 0; i < mnemonicCount; i++) {
+	for(int i = 0; i < groupCount; i++) {
 		if(i % 4 == 0) printf("\t");
-		printf("MNEMONIC_%s, ", mnemonics[i].chars);
+		printf("MNEMONIC_%s, ", groups[i].mnemonic);
 		if(i % 4 == 3) printf("\n");
 	}
-	if(mnemonicCount % 4 != 3) printf("\n");
+	if(groupCount % 4 != 3) printf("\n");
 	printf("\tMNEMONIC_COUNT\n");
 	printf("} EyreMnemonic;\n");
 
 	printf("\nstatic char* eyreMnemonicNames[MNEMONIC_COUNT] = {");
-	for(int i = 0; i < mnemonicCount; i++) {
+	for(int i = 0; i < groupCount; i++) {
 		char lowercase[16];
 		for(int j = 0; j < 16; j++) {
-			char c = mnemonics[i].chars[j];
+			char c = groups[i].mnemonic[j];
 			if(c >= 'A' && c <= 'Z') lowercase[j] = c - 'A' + 'a'; else lowercase[j] = c;
 		}
 		if(i % 4 == 0) printf("\t");
 		printf("\"%s\", ", lowercase);
 		if(i % 4 == 3) printf("\n");
 	}
-	if(mnemonicCount % 4 != 3) printf("\n");
+	if(groupCount % 4 != 3) printf("\n");
 	printf("};\n");
 }
 
 
 
-int main() {
-	parse("gen/encodings.txt");
-	printEncodings();
+static void printEncodings() {
+	for(int i = 0; i < encodingCount; i++) {
+		EyreGenEncoding encoding = encodings[i];
+		printf("%x/%d %s", encoding.opcode, encoding.extension, encoding.mnemonic);
+		if(encoding.operands >= 0)
+			printf(" %s", eyreOperandsNames[encoding.operands]);
+		if(encoding.widths > 0)
+			printf(" %d", encoding.widths);
+		printf("\n");
+	}
 }

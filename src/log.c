@@ -32,7 +32,7 @@ void println(char* format, ...) {
 
 
 
-void eyreLogError_(char* format, const char* file, int line, ...) {
+void eyreError_(char* format, const char* file, int line, ...) {
 	va_list args;
 	va_start(args, line);
 	fprintf(stderr, "Error at %s:%d: ", file, line);

@@ -18,7 +18,7 @@ void eyreCreateSrcFile(SrcFile* srcFile, char* path) {
 	);
 
 	if(handle == INVALID_HANDLE_VALUE)
-		eyreLogError("Error opening file: %s", path);
+		eyreError("Error opening file: %s", path);
 
 	int size = (int) GetFileSize(handle, NULL);
 	char* data = eyreAlloc(size + 4);
@@ -33,7 +33,7 @@ void eyreCreateSrcFile(SrcFile* srcFile, char* path) {
 
 	unsigned long numBytesRead;
 	int readResult = ReadFile(handle, srcFile->chars, srcFile->size, &numBytesRead, NULL);
-	if(readResult == 0) eyreLogError("Error reading file: %s", path);
+	if(readResult == 0) eyreError("Error reading file: %s", path);
 
 	CloseHandle(handle);
 }
@@ -86,15 +86,15 @@ void* eyreAllocPersistent(int size) {
 void eyreCheckListCapacity(List* list, int elementSize) {
 	if(list->data == NULL) {
 		if(list->capacity <= 0)
-			eyreLogError("List initial capacity is zero");
+			eyreError("List initial capacity is zero");
 		list->data = eyreAlloc(list->capacity * elementSize);
 		if(list->data == NULL)
-			eyreLogError("Failed to allocate memory for a list");
+			eyreError("Failed to allocate memory for a list");
 	} else if(list->size >= list->capacity) {
 		list->capacity = list->size << 2;
 		list->data = eyreRealloc(list->data, list->capacity * elementSize);
 		if(list->data == NULL)
-			eyreLogError("Failed to reallocate memory for a list");
+			eyreError("Failed to reallocate memory for a list");
 	}
 }
 

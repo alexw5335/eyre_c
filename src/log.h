@@ -14,7 +14,7 @@ void println(char* format, ...);
 
 
 // Always results in termination, logged to stderr
-void eyreLogError_(char* format, const char* file, int line, ...);
+void eyreError_(char* format, const char* file, int line, ...);
 
 // Always logged
 void eyreLogWarning_(char* format, const char* file, int line, ...);
@@ -30,7 +30,7 @@ void eyreLogTrace_(char* format, const char* file, int line, ...);
 
 
 
-#define eyreLogError(format, ...) eyreLogError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
+#define eyreError(format, ...) eyreError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #define eyreLogWarning(format, ...) eyreLogWarning_(format, __FILE__, __LINE__, ##__VA_ARGS__)
 
@@ -54,4 +54,4 @@ void eyreLogTrace_(char* format, const char* file, int line, ...);
 
 
 
-#endif //EYRE_LOG_INCLUDE
+#endif

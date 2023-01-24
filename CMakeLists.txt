@@ -9,21 +9,21 @@ add_executable(
         src/eyre.c
         src/eyre.h
         src/intern.c
-        src/lexer.c
-        src/parser.c
+        src/lex.c
+        src/parse.c
         src/log.h
         src/log.c
         src/lex.h
-)
+        src/symbol.c
+        src/defs.h
+        src/encodings.c
+        src/gen.c
+        src/gen.h
+        src/defs.c
+        src/intern.h)
 
 target_compile_definitions(
         eyre
         PUBLIC
         EYRE_LOG_ALL
-)
-
-add_executable(
-        gen
-        gen/generator.c
-        gen/defs.h
 )

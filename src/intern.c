@@ -1,4 +1,5 @@
 #include "eyre.h"
+#include "intern.h"
 #include <mem.h>
 
 
@@ -14,7 +15,7 @@ static List eyreInternList = { .size = 1, .capacity = 1024 };
 
 static List nodeList = { .size = 1, .capacity = 1024 };
 
-const int bucketCount = 16384;
+static const int bucketCount = 16384;
 
 static int buckets[16384];
 

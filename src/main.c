@@ -1,11 +1,27 @@
 #include "eyre.h"
+#include "gen.h"
 
-int main() {
+
+
+void test() {
 	eyreInitInterns();
 	SrcFile file;
 	eyreCreateSrcFile(&file, eyreGetLocalFile("test.txt"));
 	eyreLex(&file);
 	eyrePrintTokens();
-	eyreParse();
+	eyreParse(&file);
 	eyrePrintNodes();
+}
+
+
+
+void gen() {
+	eyreParseEncodings("encodings.txt");
+	eyreGenGroups();
+}
+
+
+
+int main() {
+	//test();
 }
