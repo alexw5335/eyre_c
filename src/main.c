@@ -1,5 +1,6 @@
 #include "eyre.h"
 #include "gen.h"
+#include "intern.h"
 
 
 
@@ -23,5 +24,5 @@ void gen() {
 
 
 int main() {
-	//test();
+	test();
 }

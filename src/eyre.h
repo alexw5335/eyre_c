@@ -22,42 +22,6 @@ extern EyreGenGroup eyreEncodings[];
 
 
 
-// Interning
-
-
-
-static List eyreInternList;
-
-int eyreAddIntern(char* string, int length, int copy);
-
-Intern* eyreGetIntern(u32 id);
-
-void eyreInitInterns();
-
-extern int eyreRegisterInternStart;
-extern int eyreRegisterInternCount;
-extern int eyreRegisterInternEnd;
-
-int eyreInternToRegister(int intern) {
-	int value = intern - eyreRegisterInternStart;
-	if(value < eyreRegisterInternCount) return value;
-	return FALSE;
-}
-
-extern int eyreKeywordInternStart;
-extern int eyreKeywordInternCount;
-extern int eyreKeywordInternEnd;
-
-extern int eyreWidthInternStart;
-extern int eyreWidthInternCount;
-extern int eyreWidthInternEnd;
-
-extern int eyreMnemonicInternStart;
-extern int eyreMnemonicInternCount;
-extern int eyreMnemonicInternEnd;
-
-
-
 // Lexing
 
 
@@ -91,6 +55,8 @@ void* eyreRealloc(void* pointer, int size);
 void eyreFree(void* pointer);
 
 void eyreCheckListCapacity(List* list, int elementSize);
+
+void* eyreAllocPersistent(int size);
 
 
 

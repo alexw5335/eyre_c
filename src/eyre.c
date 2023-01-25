@@ -40,6 +40,30 @@ void eyreCreateSrcFile(SrcFile* srcFile, char* path) {
 
 
 
+char* eyreGetLocalFile(char* fileName) {
+	int fileNameLength = (int) strlen(fileName);
+	int length = (int) GetCurrentDirectoryA(0, NULL);
+	char* file = eyreAlloc(length + fileNameLength);
+	GetCurrentDirectoryA(length, file);
+
+	int index;
+	for(int i = length - 1; i >= 0; i--) {
+		if(file[i] == '\\') {
+			index = i + 1;
+			break;
+		}
+	}
+
+	for(int i = 0; i < fileNameLength; i++)
+		file[index + i] = fileName[i];
+
+	file[index + fileNameLength] = 0;
+
+	return file;
+}
+
+
+
 // Allocation
 
 
@@ -62,7 +86,9 @@ void eyreFree(void* pointer) {
 
 
 
-/*static const int persistentSize = 1 << 16;
+static const int persistentSize = 1 << 20; // 1MB
+
+static void* persistentStart;
 
 static void* persistentCurrent;
 
@@ -71,15 +97,19 @@ static void* persistentEnd;
 
 
 void* eyreAllocPersistent(int size) {
+	if(size < 8)
+		size = (size + 7) & -8;
+
 	if(persistentCurrent + size > persistentEnd) {
-		persistentCurrent = eyreAlloc(persistentSize);
+		persistentStart = eyreAlloc(persistentSize);
+		persistentCurrent = persistentStart;
 		persistentEnd = persistentCurrent + persistentSize;
 	}
 
 	void* pointer = persistentCurrent;
 	persistentCurrent += size;
 	return pointer;
-}*/
+}
 
 
 
@@ -100,24 +130,22 @@ void eyreCheckListCapacity(List* list, int elementSize) {
 
 
 
-char* eyreGetLocalFile(char* fileName) {
-	int fileNameLength = (int) strlen(fileName);
-	int length = (int) GetCurrentDirectoryA(0, NULL);
-	char* file = eyreAlloc(length + fileNameLength);
-	GetCurrentDirectoryA(length, file);
+void* eyreBufferAlloc(Buffer* buffer, int size) {
+	if(size > 8)
+		size = (size + 7) & -8;
 
-	int index;
-	for(int i = length - 1; i >= 0; i--) {
-		if(file[i] == '\\') {
-			index = i + 1;
-			break;
-		}
+	if(buffer->current + size >= buffer->end) {
+		eyreCheckListCapacity(&buffer->banks, sizeof(void*));
+		void** banks = (void**) buffer->banks.data;
+		banks[buffer->banks.size++] = buffer->start;
+		buffer->start = malloc(buffer->bankCapacity);
+		if(buffer->start == NULL)
+			eyreError("Failed to allocate buffer memory");
+		buffer->current = buffer->start;
+		buffer->end = buffer->start + buffer->bankCapacity;
 	}
 
-	for(int i = 0; i < fileNameLength; i++)
-		file[index + i] = fileName[i];
-
-	file[index + fileNameLength] = 0;
-
-	return file;
+	void* pointer = buffer->current;
+	buffer->current += size;
+	return pointer;
 }

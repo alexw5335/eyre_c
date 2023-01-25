@@ -1,6 +1,12 @@
 #include "eyre.h"
 #include "lex.h"
 #include "log.h"
+#include "intern.h"
+#include <mem.h>
+
+
+
+// Variables
 
 
 
@@ -22,6 +28,10 @@ static SrcFile* srcFile;
 
 
 
+// Error functions
+
+
+
 #define parserErrorOffset(format, offset, ...) parserError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #define parserError(format, ...) parserError_(format, 0, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -37,10 +47,7 @@ static void parserError_(char* format, int offset, char* file, int line, ...) {
 
 
 
-static int atTerminator() {
-	return terminators[pos >> 3] & (1 << (pos & 7));
-}
-
+// Node functions
 
 
 static inline void addNode(void* node) {
@@ -51,13 +58,8 @@ static inline void addNode(void* node) {
 
 
 
-static inline void* getNodeData() {
-	return nodeDataPos;
-}
 
-
-
-static inline void* createNode(int size) {
+static inline void* newNode(int size) {
 	void* node = nodeDataPos;
 	nodeDataPos += (size + 7) & -8; // Align by 8.
 	if(nodeDataPos >= nodeDataEnd)
@@ -68,7 +70,7 @@ static inline void* createNode(int size) {
 
 
 static inline void* addNewNode(int size) {
-	void* node = createNode(size);
+	void* node = newNode(size);
 	addNode(node);
 	return node;
 }
@@ -76,7 +78,7 @@ static inline void* addNewNode(int size) {
 
 
 static void* createIntNode(int value) {
-	IntNode* node = createNode(sizeof(IntNode));
+	IntNode* node = newNode(sizeof(IntNode));
 	node->type = NODE_INT;
 	node->value = value;
 	return node;
@@ -85,7 +87,7 @@ static void* createIntNode(int value) {
 
 
 static void* createRegNode(char regType, char regValue) {
-	RegNode* node = createNode(sizeof(RegNode));
+	RegNode* node = newNode(sizeof(RegNode));
 	node->type = NODE_REG;
 	node->regType = regType;
 	node->regValue = regValue;
@@ -95,7 +97,7 @@ static void* createRegNode(char regType, char regValue) {
 
 
 static void* createSymNode(int nameIntern) {
-	SymNode* node = createNode(sizeof(SymNode));
+	SymNode* node = newNode(sizeof(SymNode));
 	node->type = NODE_SYM;
 	node->nameIntern = nameIntern;
 	return node;
@@ -104,7 +106,7 @@ static void* createSymNode(int nameIntern) {
 
 
 static void* createUnaryNode(char op, void* value) {
-	UnaryNode* node = createNode(sizeof(UnaryNode));
+	UnaryNode* node = newNode(sizeof(UnaryNode));
 	node->type = NODE_UNARY;
 	node->op = op;
 	node->value = value;
@@ -115,7 +117,7 @@ static void* createUnaryNode(char op, void* value) {
 
 
 static void* createBinaryNode(char op, void* left, void* right) {
-	BinaryNode* node = createNode(sizeof(BinaryNode));
+	BinaryNode* node = newNode(sizeof(BinaryNode));
 	node->type = NODE_BINARY;
 	node->op = op;
 	node->left = left;
@@ -126,7 +128,7 @@ static void* createBinaryNode(char op, void* left, void* right) {
 
 
 static void* createMemNode(char width, void* value) {
-	MemNode* node = createNode(sizeof(MemNode));
+	MemNode* node = newNode(sizeof(MemNode));
 	node->type = NODE_MEM;
 	node->width = width;
 	node->value = value;
@@ -136,7 +138,7 @@ static void* createMemNode(char width, void* value) {
 
 
 static void* createImmNode(void* value) {
-	ImmNode* node = createNode(sizeof(ImmNode));
+	ImmNode* node = newNode(sizeof(ImmNode));
 	node->type = NODE_IMM;
 	node->value = value;
 	return node;
@@ -144,23 +146,53 @@ static void* createImmNode(void* value) {
 
 
 
+// Parsing utils
+
+
+
+static int atTerminator() {
+	return terminators[pos >> 3] & (1 << (pos & 7));
+}
+
+static int parseId() {
+	if(tokenTypes[pos] != TOKEN_ID)
+		parserError("Expecting identifier");
+	return tokens[pos++];
+}
+
+static void expectToken(EyreTokenType type) {
+	if(tokenTypes[pos++] != type)
+		parserError("Expecting token: %s, found: %s", eyreTokenNames[type], eyreTokenNames[pos - 1]);
+}
+
+static void expectTerminator() {
+	if(!atTerminator())
+		parserError("Expecting statement end");
+}
+
+
+
+// EXPRESSION PARSING
+
+
+
+static void* parseExpression(int precedence);
+
+
+
 static int opPrecedence(char op) {
 	switch(op) {
 		case BINARY_MUL:
 		case BINARY_DIV: return 4;
-
 		case BINARY_ADD:
 		case BINARY_SUB: return 3;
-
 		case BINARY_SHL:
 		case BINARY_SHR: return 2;
-
 		case BINARY_AND:
 		case BINARY_OR:
 		case BINARY_XOR: return 1;
-
-		default: return 0;
 	}
+	return 0; // Should never happen
 }
 
 
@@ -182,20 +214,14 @@ static char getBinaryOp(char tokenType) {
 
 
 
-static void* parseAtom();
-
-static void* parseExpression(int precedence);
-
-
-
 static void* parseAtom() {
 	char type = tokenTypes[pos];
 	int token = (int) tokens[pos++];
 
 	if(type == TOKEN_ID) {
-		int reg = (int) token - eyreRegisterInternStart;
+		int reg = eyreInternToRegister(token);
 
-		if(reg < eyreRegisterInternCount) {
+		if(reg >= 0) {
 			int regType = reg >> 4;
 			int regValue = reg & 15;
 			return createRegNode((char) regType, (char) regValue);
@@ -263,69 +289,18 @@ static void* parseExpression(int precedence) {
 
 
 
-
-
-static int parseId() {
-	if(tokenTypes[pos] != TOKEN_ID)
-		parserError("Expecting identifier");
-	return tokens[pos++];
-}
-
-static void expectToken(EyreTokenType type) {
-	if(tokenTypes[pos++] != type)
-		parserError("Expecting token: %s, found: %s", eyreTokenNames[type], eyreTokenNames[pos - 1]);
-}
-
-static void expectTerminator() {
-	if(!atTerminator())
-		parserError("Expecting statement end");
-}
+// Keyword parsing
 
 
 
-static void parseNamespace() {
-	int name = parseId();
-	if(tokenTypes[pos] == TOKEN_LBRACE) {
-		expectTerminator();
-	} else {
-		pos++;
-	}
-}
+static void parseNamespace() {}
 
+static void parseEnum(int isBitmask) {}
 
+static void parseStruct() {}
 
-static void parseEnum(int isBitmask) {
-	int enumName = parseId();
-
-	expectToken(TOKEN_LBRACE);
-
-/*	EnumEntryNode* entries = getNodeData();
-
-	while(TRUE) {
-		if(tokenTypes[pos] == TOKEN_RBRACE)
-			break;
-
-		int name = parseId();
-
-		if()
-	}*/
-	expectToken(TOKEN_RBRACE);
-
-	EnumNode* enumNode = addNewNode(sizeof(EnumNode));
-	enumNode->type = NODE_ENUM;
-	enumNode->name = enumName;
-}
-
-
-
-static void parseStruct() {
-	int name = parseId();
-	expectToken(TOKEN_LBRACE);
-	expectToken(TOKEN_RBRACE);
-	StructNode* node = addNewNode(sizeof(StructNode));
-	node->name = name;
-	node->type = NODE_STRUCT;
-	expectTerminator();
+static void parseLabel(int name) {
+	
 }
 
 
@@ -342,14 +317,18 @@ static void parseKeyword(EyreKeyword keyword) {
 
 
 
+// Instruction parsing
+
+
+
 static void* parseOperand() {
 	char tokenType = tokens[pos];
 	char token = tokens[pos];
 	int width = -1;
 
 	if(tokenType == TOKEN_ID) {
-		width = token - eyreWidthInternStart;
-		if(width >= eyreWidthInternCount)
+		width = eyreInternToWidth(token);
+		if(width < 0)
 			width = -1;
 		if(tokenTypes[pos + 1] == TOKEN_LBRACKET)
 			tokenType = tokenTypes[++pos];
@@ -374,7 +353,7 @@ static void* parseOperand() {
 
 
 static void* parseInstruction(EyreMnemonic mnemonic) {
-	InsNode* node = createNode(sizeof(InsNode));
+	InsNode* node = newNode(sizeof(InsNode));
 	node->type = NODE_INS;
 	node->mnemonic = mnemonic;
 	node->op1 = NULL;
@@ -403,6 +382,10 @@ static void* parseInstruction(EyreMnemonic mnemonic) {
 
 
 
+// Public functions
+
+
+
 void eyreParse(SrcFile* inputSrcFile) {
 	pos = 0;
 	nodeCount = 0;
@@ -413,19 +396,26 @@ void eyreParse(SrcFile* inputSrcFile) {
 		u32 token = tokens[pos];
 
 		if(type == TOKEN_END) break;
-		if(type == TOKEN_ID) {
-			u32 keyword = token - eyreKeywordInternStart;
 
-			if(keyword < KEYWORD_COUNT) {
+		if(type == TOKEN_ID) {
+			pos++;
+
+			if(tokenTypes[pos] == TOKEN_COLON) {
 				pos++;
+				parseLabel(token);
+				continue;
+			}
+
+			int keyword = eyreInternToKeyword(token);
+
+			if(keyword >= 0) {
 				parseKeyword(keyword);
 				continue;
 			}
 
-			u32 mnemonic = token - eyreMnemonicInternStart;
+			int mnemonic = eyreInternToMnemonic(token);
 
-			if(mnemonic < MNEMONIC_COUNT) {
-				pos++;
+			if(mnemonic >= 0) {
 				addNode(parseInstruction(mnemonic));
 				continue;
 			}
@@ -435,6 +425,10 @@ void eyreParse(SrcFile* inputSrcFile) {
 
 		parserError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
 	}
+
+	srcFile->nodes = eyreAlloc(nodeCount * 8);
+	srcFile->nodeCount = nodeCount;
+	memcpy(srcFile->nodes, nodes, nodeCount * 8);
 }
 
 

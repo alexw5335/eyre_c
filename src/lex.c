@@ -2,6 +2,7 @@
 #include "lex.h"
 #include <mem.h>
 #include "log.h"
+#include "intern.h"
 
 
 
@@ -502,7 +503,7 @@ void eyrePrintTokens() {
 			printf("INT   %u\n", value);
 		} else if(type == TOKEN_ID) {
 			Intern* intern = eyreGetIntern(value);
-			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->string, intern->id, intern->hash);
+			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->string, value, intern->hash);
 		} else if(type == TOKEN_CHAR) {
 			char* escaped = reverseEscape((char) value);
 			if(escaped != NULL)

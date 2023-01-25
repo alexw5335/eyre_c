@@ -9,15 +9,109 @@ typedef struct {
 	int next;
 } InternNode;
 
+static List arrayList = { .size = 1, .capacity = 512 };
 
-
-static List eyreInternList = { .size = 1, .capacity = 1024 };
+static List internList = { .size = 1, .capacity = 1024 };
 
 static List nodeList = { .size = 1, .capacity = 1024 };
 
 static const int bucketCount = 16384;
 
 static int buckets[16384];
+
+typedef int (*Inserter)(void* data, int length, int hash, int copy);
+typedef int (*Matcher)(void* data, int length, int hash, int index);
+
+typedef struct {
+	List     list;
+	int*     buckets;
+	int      bucketCount;
+	int      elementSize;
+	Inserter inserter;
+	Matcher  matcher;
+} Interner;
+
+
+
+static int addIntern(Interner* interner, void* data, int length, int hash, int copy) {
+	eyreCheckListCapacity(&interner->list, sizeof(Intern));
+
+	if(copy) {
+		char* newString = eyreAllocPersistent(length + 1);
+		memcpy(newString, data, length);
+		data = newString;
+	}
+
+	int id = interner->list.size;
+	interner->inserter(data, length, hash, copy);
+	return id;
+}
+
+
+
+static int intern(Interner* interner, void* data, int length, int hash, int copy) {
+	int bucketIndex = hash & interner->bucketCount;
+	int bucket = interner->buckets[bucketIndex];
+
+	// Empty bucket, simply add intern and return
+	if(bucket == 0) {
+		int internId = interner->inserter(data, length, hash, copy);
+		interner->buckets[bucketIndex] = internId << 1;
+		return internId;
+	}
+
+	eyreCheckListCapacity(&nodeList, sizeof(InternNode));
+	void* interns = interner->list.data;
+	InternNode* nodes = nodeList.data;
+
+	// Bucket contains a single intern
+	if((bucket & 1) == 0) {
+		int internIndex = bucket >> 1;
+
+		// If the existing intern matches the input, return it
+		if(interner->matcher(data, length, hash, internIndex)) return internIndex;
+
+		// Otherwise, the bucket is changed to refer to a linked list node
+		int internId = interner->inserter(data, length, hash, copy);
+
+		eyreCheckListCapacity(&nodeList, sizeof(InternNode));
+		nodes[nodeList.size].intern = bucket >> 1;
+		nodes[nodeList.size].next = nodeList.size + 1;
+		nodeList.size++;
+
+		eyreCheckListCapacity(&nodeList, sizeof(InternNode));
+		nodes[nodeList.size].intern = internId;
+		nodes[nodeList.size].next = 0;
+		nodeList.size++;
+
+		buckets[bucketIndex] = ((nodeList.size - 2) << 1) | 1;
+
+		return internId;
+	}
+
+	// Bucket refers to a linked list of interns
+	InternNode* node = &nodes[bucket >> 1];
+	while(1) {
+		// Existing intern found
+		if(interner->matcher(data, length, hash, node->intern))
+			return node->intern;
+
+		// If the intern does not exist, then append the new intern to the end of the linked list
+		if(node->next == 0) {
+			int internId = interner->inserter(data, length, hash, copy);
+			node->next = nodeList.size;
+			eyreCheckListCapacity(&nodeList, sizeof(InternNode));
+			nodes[nodeList.size].intern = internId;
+			nodes[nodeList.size].next = 0;
+			nodeList.size++;
+			return internId;
+		}
+
+		node = &nodes[node->next];
+	}
+
+	return 0;
+}
 
 
 
@@ -31,30 +125,48 @@ static int stringHash(const char* string, int length) {
 
 
 Intern* eyreGetIntern(u32 id) {
-	Intern* interns = eyreInternList.data;
+	Intern* interns = internList.data;
 	return &interns[id];
 }
 
 
 
 static int addInternToList(char* string, int length, int hash, int copy) {
-	eyreCheckListCapacity(&eyreInternList, sizeof(Intern));
+	eyreCheckListCapacity(&internList, sizeof(Intern));
 
 	if(copy) {
-		char* newString = eyreAlloc(length + 1);
+		char* newString = eyreAllocPersistent(length + 1);
 		memcpy(newString, string, length);
 		string = newString;
 	}
 
 
-	int id = eyreInternList.size;
-	Intern* interns = eyreInternList.data;
-	Intern* intern = &interns[eyreInternList.size++];
-	intern->id = id;
+	int id = internList.size;
+	Intern* interns = internList.data;
+	Intern* intern = &interns[internList.size++];
 	intern->length = length;
 	intern->hash = hash;
-	intern->flags = copy;
 	intern->string = string;
+	return id;
+}
+
+
+
+static int addArrayToList(int* components, int length, int hash, int copy) {
+	eyreCheckListCapacity(&arrayList, sizeof(InternArray));
+
+	if(copy) {
+		int* newComponents = eyreAllocPersistent(length * sizeof(int));
+		memcpy(newComponents, components, length * sizeof(int));
+		components = newComponents;
+	}
+
+	int id = arrayList.size;
+	InternArray* arrays = arrayList.data;
+	InternArray* array = &arrays[arrayList.size++];
+	array->length = length;
+	array->hash = hash;
+	array->components = components;
 	return id;
 }
 
@@ -73,16 +185,17 @@ int eyreAddIntern(char* string, int length, int copy) {
 	}
 
 	eyreCheckListCapacity(&nodeList, sizeof(InternNode));
-	Intern* interns = eyreInternList.data;
+	Intern* interns = internList.data;
 	InternNode* nodes = nodeList.data;
 
 	// Bucket contains a single intern
 	if((bucket & 1) == 0) {
-		Intern intern = interns[bucket >> 1];
+		int internIndex = bucket >> 1;
+		Intern intern = interns[internIndex];
 
 		// If the existing intern matches the input, return it
 		if(hash == intern.hash && length == intern.length && memcmp(string, intern.string, length) == 0)
-			return intern.id;
+			return internIndex;
 
 		// Otherwise, the bucket is changed to refer to a linked list node
 		int internId = addInternToList(string, length, hash, copy);
@@ -110,7 +223,7 @@ int eyreAddIntern(char* string, int length, int copy) {
 
 		// Existing intern found
 		if(hash == intern.hash && length == intern.length && memcmp(string, intern.string, length) == 0)
-			return intern.id;
+			return node->intern;
 
 		// If the intern does not exist, then append the new intern to the end of the linked list
 		if(node->next == 0) {
@@ -133,47 +246,59 @@ int eyreAddIntern(char* string, int length, int copy) {
 
 
 
-int eyreRegisterInternStart;
-int eyreRegisterInternCount;
-int eyreRegisterInternEnd;
-
-int eyreKeywordInternStart;
-int eyreKeywordInternCount;
-int eyreKeywordInternEnd;
-
-int eyreWidthInternStart;
-int eyreWidthInternCount;
-int eyreWidthInternEnd;
-
-int eyreMnemonicInternStart;
-int eyreMnemonicInternCount;
-int eyreMnemonicInternEnd;
-
-
-
 static int addStandardIntern(char* string) {
 	return eyreAddIntern(string, (int) strlen(string), FALSE);
+}
+
+static int registerStart;
+static int registerCount;
+
+static int keywordStart;
+static int keywordCount;
+
+static int widthStart;
+static int widthCount;
+
+static int mnemonicStart;
+static int mnemonicCount;
+
+int eyreInternToRegister(int intern) {
+	int value = intern - registerStart;
+	return value < registerCount ? value : -1;
+}
+
+int eyreInternToKeyword(int intern) {
+	int value = intern - keywordStart;
+	return value < keywordCount ? value : -1;
+}
+
+int eyreInternToWidth(int intern) {
+	int value = intern - widthStart;
+	return value < widthCount ? value : -1;
+}
+
+int eyreInternToMnemonic(int intern) {
+	int value = intern - mnemonicStart;
+	return value < mnemonicCount ? value : -1;
 }
 
 
 
 void eyreInitInterns() {
 	// Keywords
-	eyreKeywordInternStart = eyreInternList.size;
+	keywordStart = internList.size;
 	for(int i = 0; i < KEYWORD_COUNT; i++)
 		addStandardIntern(eyreKeywordNames[i]);
-	eyreKeywordInternEnd = eyreInternList.size;
-	eyreKeywordInternCount = eyreKeywordInternEnd - eyreKeywordInternStart;
+	keywordCount = internList.size - keywordStart;
 
 	// Widths
-	eyreWidthInternStart = eyreInternList.size;
+	widthStart = internList.size;
 	for(int i = 0; i < WIDTH_COUNT; i++)
 		addStandardIntern(eyreWidthNames[i]);
-	eyreWidthInternEnd = eyreInternList.size;
-	eyreWidthInternCount = eyreWidthInternEnd - eyreWidthInternStart;
+	widthCount = internList.size - widthStart;
 
 	// General-purpose registers
-	eyreRegisterInternStart = eyreInternList.size;
+	registerStart = internList.size;
 	for(int i = 0; i < 16; i++)
 		addStandardIntern(eyreByteRegNames[i]);
 	for(int i = 0; i < 16; i++)
@@ -182,13 +307,11 @@ void eyreInitInterns() {
 		addStandardIntern(eyreDWordRegNames[i]);
 	for(int i = 0; i < 16; i++)
 		addStandardIntern(eyreQWordRegNames[i]);
-	eyreRegisterInternEnd = eyreInternList.size;
-	eyreRegisterInternCount = eyreRegisterInternEnd - eyreRegisterInternStart;
+	registerCount = internList.size - registerStart;
 
 	// Mnemonics
-	eyreMnemonicInternStart = eyreInternList.size;
+	mnemonicStart = internList.size;
 	for(int i = 0; i < MNEMONIC_COUNT; i++)
 		addStandardIntern(eyreMnemonicNames[i]);
-	eyreMnemonicInternEnd = eyreInternList.size;
-	eyreMnemonicInternCount = eyreMnemonicInternEnd - eyreMnemonicInternStart;
+	mnemonicCount = internList.size - mnemonicStart;
 }

@@ -277,6 +277,8 @@ typedef struct SrcFile {
 	char* path;
 	char* chars;
 	int   size;
+	void* nodes;
+	int   nodeCount;
 } SrcFile;
 
 
@@ -290,12 +292,28 @@ typedef struct {
 
 
 typedef struct {
-	int id;
+	List  banks;
+	void* start;
+	void* current;
+	void* end;
+	int   bankCapacity;
+} Buffer;
+
+
+
+typedef struct {
 	int hash;
 	int length;
-	int flags;
 	char* string;
 } Intern;
+
+
+
+typedef struct {
+	int hash;
+	int length;
+	int* components;
+} InternArray;
 
 
 

@@ -20,7 +20,7 @@ add_executable(
         src/gen.c
         src/gen.h
         src/defs.c
-        src/intern.h)
+        src/intern.h src/parse.h)
 
 target_compile_definitions(
         eyre
