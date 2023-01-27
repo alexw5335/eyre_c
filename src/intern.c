@@ -9,6 +9,7 @@ typedef struct {
 	int next;
 } InternNode;
 
+
 static List arrayList = { .size = 1, .capacity = 512 };
 
 static List internList = { .size = 1, .capacity = 1024 };
@@ -19,11 +20,11 @@ static const int bucketCount = 16384;
 
 static int buckets[16384];
 
-typedef int (*Inserter)(void* data, int length, int hash, int copy);
+typedef void (*Inserter)(void* data, int length, int hash, int copy);
 typedef int (*Matcher)(void* data, int length, int hash, int index);
 
 typedef struct {
-	List     list;
+	List*    list;
 	int*     buckets;
 	int      bucketCount;
 	int      elementSize;
@@ -31,10 +32,38 @@ typedef struct {
 	Matcher  matcher;
 } Interner;
 
+static List stringList = { .size = 1, .capacity = 4096 };
+
+
+
+static void insertString(void* data, int length, int hash, int copy) {
+	Intern* interns = internList.data;
+	Intern* intern  = &interns[internList.size++];
+	intern->length  = length;
+	intern->hash    = hash;
+	intern->string  = data;
+}
+
+
+
+static int stringBuckets[8192];
+
+static int arrayBuckets[8192];
+
+
+
+static Interner stringInterner = {
+	.buckets = stringBuckets,
+	.bucketCount = 8192,
+	.elementSize = sizeof(Intern),
+	.inserter = insertString,
+};
+
+
 
 
 static int addIntern(Interner* interner, void* data, int length, int hash, int copy) {
-	eyreCheckListCapacity(&interner->list, sizeof(Intern));
+	eyreCheckListCapacity(interner->list, interner->elementSize);
 
 	if(copy) {
 		char* newString = eyreAllocPersistent(length + 1);
@@ -42,7 +71,7 @@ static int addIntern(Interner* interner, void* data, int length, int hash, int c
 		data = newString;
 	}
 
-	int id = interner->list.size;
+	int id = interner->list->size;
 	interner->inserter(data, length, hash, copy);
 	return id;
 }
@@ -55,13 +84,12 @@ static int intern(Interner* interner, void* data, int length, int hash, int copy
 
 	// Empty bucket, simply add intern and return
 	if(bucket == 0) {
-		int internId = interner->inserter(data, length, hash, copy);
+		int internId = addIntern(interner, data, length, hash, copy);
 		interner->buckets[bucketIndex] = internId << 1;
 		return internId;
 	}
 
 	eyreCheckListCapacity(&nodeList, sizeof(InternNode));
-	void* interns = interner->list.data;
 	InternNode* nodes = nodeList.data;
 
 	// Bucket contains a single intern
@@ -72,7 +100,7 @@ static int intern(Interner* interner, void* data, int length, int hash, int copy
 		if(interner->matcher(data, length, hash, internIndex)) return internIndex;
 
 		// Otherwise, the bucket is changed to refer to a linked list node
-		int internId = interner->inserter(data, length, hash, copy);
+		int internId = addIntern(interner, data, length, hash, copy);
 
 		eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 		nodes[nodeList.size].intern = bucket >> 1;
@@ -98,7 +126,7 @@ static int intern(Interner* interner, void* data, int length, int hash, int copy
 
 		// If the intern does not exist, then append the new intern to the end of the linked list
 		if(node->next == 0) {
-			int internId = interner->inserter(data, length, hash, copy);
+			int internId = addIntern(interner, data, length, hash, copy);
 			node->next = nodeList.size;
 			eyreCheckListCapacity(&nodeList, sizeof(InternNode));
 			nodes[nodeList.size].intern = internId;
@@ -109,8 +137,6 @@ static int intern(Interner* interner, void* data, int length, int hash, int copy
 
 		node = &nodes[node->next];
 	}
-
-	return 0;
 }
 
 
