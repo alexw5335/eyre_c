@@ -2,10 +2,19 @@
 #define EYRE_INTERN_INCLUDE
 
 #include "defs.h"
+#include "symbol.h"
 
-int eyreAddIntern(char* string, int length, int copy);
+int eyreInternString(char* data, int length);
 
-Intern* eyreGetIntern(u32 id);
+int eyreInternScope(int* data, int length, int hash);
+
+int eyreInternSymbol(SymBase* symbol);
+
+StringIntern* eyreGetString(int id);
+
+ScopeIntern* eyreGetScope(int id);
+
+SymBase* eyreGetSymbol(int id);
 
 void eyreInitInterns();
 

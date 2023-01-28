@@ -68,6 +68,17 @@ char* eyreGetLocalFile(char* fileName) {
 
 
 
+inline void checkCapacity(void** pData, int size, int* pCapacity, int elementSize) {
+	if(*pData == NULL) {
+		*pData = malloc(*pCapacity);
+	} else if(size >= *pCapacity) {
+		*pCapacity = size << 2;
+		*pData = realloc(*pData, *pCapacity);
+	}
+}
+
+
+
 void* eyreAlloc(int size) {
 	return malloc(size);
 }

@@ -38,6 +38,7 @@ typedef enum {
 	NODE_SCOPE_END,
 	NODE_NAMESPACE,
 	NODE_ENUM,
+	NODE_LABEL,
 	NODE_COUNT
 } EyreNodeType;
 
@@ -274,11 +275,12 @@ typedef struct {
 
 
 typedef struct SrcFile {
-	char* path;
-	char* chars;
-	int   size;
-	void* nodes;
-	int   nodeCount;
+	char*  path;
+	char*  chars;
+	int    size;
+	void*  nodes;
+	short* nodeLines;
+	int    nodeCount;
 } SrcFile;
 
 
@@ -304,147 +306,16 @@ typedef struct {
 typedef struct {
 	int hash;
 	int length;
-	char* string;
-} Intern;
+	char* data;
+} StringIntern;
 
 
 
 typedef struct {
 	int hash;
 	int length;
-	int* components;
-} InternArray;
-
-
-
-// NODES
-
-
-
-typedef struct {
-	char type;
-	int value;
-} IntNode;
-
-
-
-typedef struct {
-	char type;
-	char regType;
-	char regValue;
-} RegNode;
-
-
-
-typedef struct {
-	char type;
-	int nameIntern;
-} SymNode;
-
-
-
-typedef struct {
-	char type;
-	char op;
-	void* value;
-} UnaryNode;
-
-
-
-typedef struct {
-	char type;
-	char op;
-	void* left;
-	void* right;
-} BinaryNode;
-
-
-
-typedef struct {
-	char type;
-	char mnemonic;
-	void* op1;
-	void* op2;
-	void* op3;
-	void* op4;
-} InsNode;
-
-
-
-typedef struct {
-	char type;
-	char width;
-	void* value;
-} MemNode;
-
-
-
-typedef struct {
-	char type;
-	void* value;
-} ImmNode;
-
-
-
-typedef struct {
-	int name;
-	int typeName;
-} StructMemberNode;
-
-
-
-typedef struct {
-	char type;
-	int name;
-	int symbol;
-	StructMemberNode* members;
-} StructNode;
-
-
-
-typedef struct {
-	int name;
-	void* expression;
-} EnumEntryNode;
-
-
-
-typedef struct {
-	char type;
-	int name;
-	int symbol;
-	EnumEntryNode* nodes;
-} EnumNode;
-
-
-
-typedef struct {
-	char type;
-	int name;
-} NamespaceNode;
-
-
-
-typedef struct {
-	char type;
-} ScopeEndNode;
-
-
-
-typedef enum {
-	STRUCT,
-	ENUM,
-	NAMESPACE,
-} EyreSymbolType;
-
-
-
-typedef struct {
-	int name;
-	int type;
-	int flags;
-	void* data;
-} EyreSymbol;
+	int* data;
+} ScopeIntern;
 
 
 

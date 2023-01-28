@@ -3,6 +3,8 @@
 #include "log.h"
 #include "intern.h"
 #include <mem.h>
+#include "parse.h"
+#include "symbol.h"
 
 
 
@@ -12,11 +14,13 @@
 
 static int pos = 0;
 
-#define NODE_CAPACITY 8192
+#define nodeCapacity 8192
 
-static void* nodes[NODE_CAPACITY];
+static void* nodes[nodeCapacity];
 
 static int nodeCount;
+
+static short nodeLines[nodeCapacity];
 
 static char nodeData[16384];
 
@@ -25,6 +29,16 @@ static void* nodeDataEnd = nodeData + 16384;
 static void* nodeDataPos = nodeData;
 
 static SrcFile* srcFile;
+
+#define scopesCapacity 32
+
+static int scopes[scopesCapacity];
+
+static int scopeHashes[scopesCapacity];
+
+static int scopesSize = 0;
+
+static int currentScope = 0;
 
 
 
@@ -42,7 +56,7 @@ static void parserError_(char* format, int offset, char* file, int line, ...) {
 	va_start(args, line);
 	vfprintf(stderr, format, args);
 	fprintf(stderr, "\n");
-	eyreError("Parser error", file, line);
+	eyreError_("Parser error", file, line);
 }
 
 
@@ -50,17 +64,19 @@ static void parserError_(char* format, int offset, char* file, int line, ...) {
 // Node functions
 
 
+
 static inline void addNode(void* node) {
-	if(nodeCount >= NODE_CAPACITY)
+	if(nodeCount >= nodeCapacity)
 		parserError("Too many nodes");
+	nodeLines[nodeCount] = tokenLines[pos - 1];
 	nodes[nodeCount++] = node;
 }
 
 
 
-
-static inline void* newNode(int size) {
-	void* node = nodeDataPos;
+static void* createNode(int size, EyreNodeType type) {
+	EyreNodeType* node = nodeDataPos;
+	*node = type;
 	nodeDataPos += (size + 7) & -8; // Align by 8.
 	if(nodeDataPos >= nodeDataEnd)
 		parserError("Ran out of node data");
@@ -69,44 +85,8 @@ static inline void* newNode(int size) {
 
 
 
-static inline void* addNewNode(int size) {
-	void* node = newNode(size);
-	addNode(node);
-	return node;
-}
-
-
-
-static void* createIntNode(int value) {
-	IntNode* node = newNode(sizeof(IntNode));
-	node->type = NODE_INT;
-	node->value = value;
-	return node;
-}
-
-
-
-static void* createRegNode(char regType, char regValue) {
-	RegNode* node = newNode(sizeof(RegNode));
-	node->type = NODE_REG;
-	node->regType = regType;
-	node->regValue = regValue;
-	return node;
-}
-
-
-
-static void* createSymNode(int nameIntern) {
-	SymNode* node = newNode(sizeof(SymNode));
-	node->type = NODE_SYM;
-	node->nameIntern = nameIntern;
-	return node;
-}
-
-
-
 static void* createUnaryNode(char op, void* value) {
-	UnaryNode* node = newNode(sizeof(UnaryNode));
+	UnaryNode* node = createNode(sizeof(UnaryNode), NODE_UNARY);
 	node->type = NODE_UNARY;
 	node->op = op;
 	node->value = value;
@@ -115,32 +95,12 @@ static void* createUnaryNode(char op, void* value) {
 
 
 
-
 static void* createBinaryNode(char op, void* left, void* right) {
-	BinaryNode* node = newNode(sizeof(BinaryNode));
+	BinaryNode* node = createNode(sizeof(BinaryNode), NODE_BINARY);
 	node->type = NODE_BINARY;
 	node->op = op;
 	node->left = left;
 	node->right = right;
-	return node;
-}
-
-
-
-static void* createMemNode(char width, void* value) {
-	MemNode* node = newNode(sizeof(MemNode));
-	node->type = NODE_MEM;
-	node->width = width;
-	node->value = value;
-	return node;
-}
-
-
-
-static void* createImmNode(void* value) {
-	ImmNode* node = newNode(sizeof(ImmNode));
-	node->type = NODE_IMM;
-	node->value = value;
 	return node;
 }
 
@@ -191,8 +151,8 @@ static int opPrecedence(char op) {
 		case BINARY_AND:
 		case BINARY_OR:
 		case BINARY_XOR: return 1;
+		default: return 0;
 	}
-	return 0; // Should never happen
 }
 
 
@@ -222,16 +182,22 @@ static void* parseAtom() {
 		int reg = eyreInternToRegister(token);
 
 		if(reg >= 0) {
-			int regType = reg >> 4;
-			int regValue = reg & 15;
-			return createRegNode((char) regType, (char) regValue);
+			RegNode* node = createNode(sizeof(RegNode), NODE_REG);
+			node->regType = reg >> 4;
+			node->regValue = reg & 15;
+			return node;
 		}
 
-		return createSymNode(token);
+		SymNode* node = createNode(sizeof(SymNode), NODE_SYM);
+		node->nameIntern = token;
+		return node;
 	}
 
-	if(type == TOKEN_INT)
-		return createIntNode(token);
+	if(type == TOKEN_INT) {
+		IntNode* node = createNode(sizeof(IntNode), NODE_INT);
+		node->value = token;
+		return node;
+	}
 
 	if(type >= TOKEN_SYM_START) {
 		if(type == TOKEN_LPAREN) {
@@ -293,14 +259,35 @@ static void* parseExpression(int precedence) {
 
 
 
-static void parseNamespace() {}
+static int addScope(int intern) {
+	int hash = scopeHashes[scopesSize] * 31 + intern;
+	scopeHashes[scopesSize] = hash;
+	scopes[scopesSize++] = intern;
+	currentScope = eyreInternScope(scopes, scopesSize, hash);
+	return currentScope;
+}
+
+
+
+static void parseNamespace() {
+	int name = parseId();
+	int scope = addScope(name);
+	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, scope, name, sizeof(NamespaceSymbol));
+	NamespaceNode* node = createNode(sizeof(NamespaceNode), NODE_NAMESPACE);
+	node->name = name;
+	node->symbol = symbol;
+	addNode(node);
+}
 
 static void parseEnum(int isBitmask) {}
 
 static void parseStruct() {}
 
 static void parseLabel(int name) {
-	
+	LabelSymbol* symbol = eyreAddSymbol(SYM_LABEL, currentScope, name, sizeof(LabelSymbol));
+	LabelNode* node = createNode(sizeof(LabelNode), NODE_LABEL);
+	node->symbol = symbol;
+	addNode(node);
 }
 
 
@@ -339,22 +326,27 @@ static void* parseOperand() {
 		void* value = parseExpression(0);
 		if(tokenTypes[pos++] != TOKEN_RBRACKET)
 			parserError("Expecting ']'");
-		return createMemNode(width, value);
+		MemNode* node = createNode(sizeof(MemNode), NODE_MEM);
+		node->width = width;
+		node->value = value;
+		return node;
 	}
 
 	void* node = parseExpression(0);
 	char nodeType = *(char*) node;
+
 	if(nodeType == NODE_REG)
 		return node;
-	else
-		return createImmNode(node);
+
+	ImmNode* immNode = createNode(sizeof(ImmNode), NODE_IMM);
+	immNode->value = node;
+	return immNode;
 }
 
 
 
-static void* parseInstruction(EyreMnemonic mnemonic) {
-	InsNode* node = newNode(sizeof(InsNode));
-	node->type = NODE_INS;
+static InsNode* parseInstruction(EyreMnemonic mnemonic) {
+	InsNode* node = createNode(sizeof(InsNode), NODE_INS);
 	node->mnemonic = mnemonic;
 	node->op1 = NULL;
 	node->op2 = NULL;
@@ -391,7 +383,7 @@ void eyreParse(SrcFile* inputSrcFile) {
 	nodeCount = 0;
 	srcFile = inputSrcFile;
 
-	while(1) {
+	while(pos < tokenCount) {
 		u8 type = tokenTypes[pos];
 		u32 token = tokens[pos];
 
@@ -427,8 +419,12 @@ void eyreParse(SrcFile* inputSrcFile) {
 	}
 
 	srcFile->nodes = eyreAlloc(nodeCount * 8);
-	srcFile->nodeCount = nodeCount;
 	memcpy(srcFile->nodes, nodes, nodeCount * 8);
+
+	srcFile->nodeLines = eyreAlloc(nodeCount * 2);
+	memcpy(srcFile->nodeLines, nodeLines, nodeCount * 2);
+
+	srcFile->nodeCount = nodeCount;
 }
 
 
@@ -479,18 +475,25 @@ void eyrePrintNode(void* node) {
 	} else if(type == NODE_INS) {
 		InsNode* n = node;
 		printf("%s", eyreMnemonicNames[n->mnemonic]);
-		if(n->op1 == NULL) return;
+		if(n->op1 == NULL) { printf("\n"); return; }
 		printf(" ");
 		eyrePrintNode(n->op1);
-		if(n->op2 == NULL) return;
+		if(n->op2 == NULL) { printf("\n"); return; }
 		printf(", ");
 		eyrePrintNode(n->op2);
-		if(n->op3 == NULL) return;
+		if(n->op3 == NULL) { printf("\n"); return; }
 		printf(", ");
 		eyrePrintNode(n->op3);
-		if(n->op4 == NULL) return;
+		if(n->op4 == NULL) { printf("\n"); return; }
 		printf(", ");
 		eyrePrintNode(n->op4);
+		printf("\n");
+	} else if(type == NODE_NAMESPACE) {
+		NamespaceNode* n = node;
+		printf("namespace %s\n", eyreGetString(n->symbol->base.name)->data);
+	} else if(type == NODE_LABEL) {
+		LabelNode* n = node;
+		printf("%s:\n", eyreGetString(n->symbol->base.name)->data);
 	} else {
 		parserError("Invalid node for printing: %d", eyreNodeNames[type]);
 	}
@@ -499,6 +502,8 @@ void eyrePrintNode(void* node) {
 
 
 void eyrePrintNodes() {
-	for(int i = 0; i < nodeCount; i++)
+	for(int i = 0; i < nodeCount; i++) {
+		printf("Line %d:  ", nodeLines[i]);
 		eyrePrintNode(nodes[i]);
+	}
 }

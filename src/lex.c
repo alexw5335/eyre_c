@@ -312,7 +312,7 @@ static void readId() {
 			break;
 	}
 	pos += length;
-	addToken(TOKEN_ID, eyreAddIntern(string, length, TRUE));
+	addToken(TOKEN_ID, eyreInternString(string, length));
 }
 
 
@@ -332,7 +332,7 @@ static void readString() {
 		}
 	}
 
-	addToken(TOKEN_STRING, eyreAddIntern(stringBuilder, length, TRUE));
+	addToken(TOKEN_STRING, eyreInternString(stringBuilder, length));
 }
 
 
@@ -468,20 +468,34 @@ void eyreLex(SrcFile* inputSrcFile) {
 			case '=': doubleSymbol('=', TOKEN_EQUALITY, TOKEN_EQUALS); break;
 			case '<': doubleSymbol2('<', TOKEN_LSHIFT, '=', TOKEN_LTE, TOKEN_LT); break;
 			case '>': doubleSymbol2('>', TOKEN_RSHIFT, '=', TOKEN_GTE, TOKEN_GT); break;
-			case '^': pos++; addSymbol(TOKEN_CARET); break;
-			case '+': pos++; addSymbol(TOKEN_PLUS); break;
-			case '-': pos++; addSymbol(TOKEN_MINUS); break;
-			case '{': pos++; addSymbol(TOKEN_LBRACE); break;
-			case '}': pos++; addSymbol(TOKEN_RBRACE); break;
-			case '(': pos++; addSymbol(TOKEN_LPAREN); break;
-			case ')': pos++; addSymbol(TOKEN_RPAREN); break;
-			case '[': pos++; addSymbol(TOKEN_LBRACKET); break;
-			case ']': pos++; addSymbol(TOKEN_RBRACKET); break;
-			case ';': pos++; addSymbol(TOKEN_SEMICOLON); break;
-			case '.': pos++; addSymbol(TOKEN_DOT); break;
-			case '~': pos++; addSymbol(TOKEN_TILDE); break;
-			case '*': pos++; addSymbol(TOKEN_ASTERISK); break;
-			case ',': pos++; addSymbol(TOKEN_COMMA); break;
+			case '^': pos++;
+				addSymbol(TOKEN_CARET); break;
+			case '+': pos++;
+				addSymbol(TOKEN_PLUS); break;
+			case '-': pos++;
+				addSymbol(TOKEN_MINUS); break;
+			case '{': pos++;
+				addSymbol(TOKEN_LBRACE); break;
+			case '}': pos++;
+				addSymbol(TOKEN_RBRACE); break;
+			case '(': pos++;
+				addSymbol(TOKEN_LPAREN); break;
+			case ')': pos++;
+				addSymbol(TOKEN_RPAREN); break;
+			case '[': pos++;
+				addSymbol(TOKEN_LBRACKET); break;
+			case ']': pos++;
+				addSymbol(TOKEN_RBRACKET); break;
+			case ';': pos++;
+				addSymbol(TOKEN_SEMICOLON); break;
+			case '.': pos++;
+				addSymbol(TOKEN_DOT); break;
+			case '~': pos++;
+				addSymbol(TOKEN_TILDE); break;
+			case '*': pos++;
+				addSymbol(TOKEN_ASTERISK); break;
+			case ',': pos++;
+				addSymbol(TOKEN_COMMA); break;
 
 			default: lexerError("Invalid ascii codepoint: %c", chars[pos]);
 		}
@@ -502,8 +516,8 @@ void eyrePrintTokens() {
 		if(type == TOKEN_INT) {
 			printf("INT   %u\n", value);
 		} else if(type == TOKEN_ID) {
-			Intern* intern = eyreGetIntern(value);
-			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->string, value, intern->hash);
+			StringIntern* intern = eyreGetString(value);
+			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->data, value, intern->hash);
 		} else if(type == TOKEN_CHAR) {
 			char* escaped = reverseEscape((char) value);
 			if(escaped != NULL)
@@ -511,7 +525,7 @@ void eyrePrintTokens() {
 			else
 				printf("CHAR  '%c' (%d)\n", value, value);
 		} else if(type == TOKEN_STRING) {
-			printf("STR   \"%s\"\n", eyreGetIntern(value)->string);
+			printf("STR   \"%s\"\n", eyreGetString(value)->data);
 		} else if(type >= TOKEN_SYM_START) {
 			printf("SYM   %s\n", eyreTokenSymbols[type]);
 		}

@@ -359,6 +359,8 @@ void eyreGenGroups() {
 		printf("\t{ %d, %d, EYRE_ENCODINGS_%s },\n", g.operandsBits, g.specifierBits, g.mnemonic);
 	}
 	printf("};\n");
+
+	printf("\nEyreGroup eyreGetEncodings(int mnemonic) { return eyreEncodings[mnemonic]; }\n\n\n");
 }
 
 

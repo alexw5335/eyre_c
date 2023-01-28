@@ -10,6 +10,10 @@
 
 
 
+void checkCapacity(void** pData, int size, int* pCapacity, int elementSize);
+
+
+
 // General
 
 
@@ -18,7 +22,7 @@ void eyreCreateSrcFile(SrcFile* srcFile, char* path);
 
 char* eyreGetLocalFile(char* fileName);
 
-extern EyreGenGroup eyreEncodings[];
+EyreGroup eyreGetEncodings(int mnemonic);
 
 
 
@@ -29,18 +33,6 @@ extern EyreGenGroup eyreEncodings[];
 void eyreLex(SrcFile* srcFile);
 
 void eyrePrintTokens();
-
-
-
-// Parsing
-
-
-
-void eyreParse(SrcFile* srcFile);
-
-void eyrePrintNode(void* node);
-
-void eyrePrintNodes();
 
 
 

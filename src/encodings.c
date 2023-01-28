@@ -864,3 +864,7 @@ static EyreGroup eyreEncodings[] = {
 	{ 2, 1, EYRE_ENCODINGS_RDRAND },
 	{ 2, 1, EYRE_ENCODINGS_RDSEED },
 };
+
+EyreGroup eyreGetEncodings(int mnemonic) {
+	return eyreEncodings[mnemonic];
+}
