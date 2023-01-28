@@ -393,45 +393,6 @@ static void processZero() {
 
 
 
-static void skipIdOrNumber() {
-	while(1) {
-		char c = chars[pos];
-		if(idMap[c >> 3] & (1 << (c & 7)))
-			pos++;
-		else
-			break;
-		tokenCount++;
-	}
-}
-
-
-
-/*void eyreLexPositions(SrcFile* inputSrcFile) {
-	srcFile = *inputSrcFile;
-	chars = srcFile.chars;
-	pos = 0;
-	size = srcFile.size;
-	tokenCount = 0;
-	lineCount = 0;
-
-	while(pos < size) {
-		switch(chars[pos]) {
-			case '\n': pos++; tokens[tokenCount] = lineCount; break;
-
-			case '\t':
-			case '\r':
-			case ' ': pos++; break;
-
-			case '_':
-			case 'a'...'z':
-			case 'A'...'Z':
-			case '0'...'9': skipIdOrNumber(); tokens[tokenCount] = lineCount; break;
-		}
-	}
-}*/
-
-
-
 void eyreLex(SrcFile* inputSrcFile) {
 	srcFile = *inputSrcFile;
 	chars = srcFile.chars;
@@ -443,23 +404,20 @@ void eyreLex(SrcFile* inputSrcFile) {
 	while(pos < size) {
 		switch(chars[pos]) {
 			case '\n': pos++; onNewline(); break;
+
 			case '\t':
 			case '\r':
 			case ' ' : pos++; break;
 
 			case '0': processZero(); break;
-
 			case '1'...'9': parseDecimal(); break;
+			case '/': processSlash(); break;
+			case '\'': readChar(); break;
+			case '"': readString(); break;
 
 			case '_':
 			case 'a'...'z':
 			case 'A'...'Z': readId(); break;
-
-			case '/': processSlash(); break;
-
-			case '\'': readChar(); break;
-
-			case '"': readString(); break;
 
 			case '|': doubleSymbol('|', TOKEN_PIPE, TOKEN_LOGICAL_OR); break;
 			case '&': doubleSymbol('&', TOKEN_AMPERSAND, TOKEN_LOGICAL_AND); break;
@@ -468,43 +426,28 @@ void eyreLex(SrcFile* inputSrcFile) {
 			case '=': doubleSymbol('=', TOKEN_EQUALITY, TOKEN_EQUALS); break;
 			case '<': doubleSymbol2('<', TOKEN_LSHIFT, '=', TOKEN_LTE, TOKEN_LT); break;
 			case '>': doubleSymbol2('>', TOKEN_RSHIFT, '=', TOKEN_GTE, TOKEN_GT); break;
-			case '^': pos++;
-				addSymbol(TOKEN_CARET); break;
-			case '+': pos++;
-				addSymbol(TOKEN_PLUS); break;
-			case '-': pos++;
-				addSymbol(TOKEN_MINUS); break;
-			case '{': pos++;
-				addSymbol(TOKEN_LBRACE); break;
-			case '}': pos++;
-				addSymbol(TOKEN_RBRACE); break;
-			case '(': pos++;
-				addSymbol(TOKEN_LPAREN); break;
-			case ')': pos++;
-				addSymbol(TOKEN_RPAREN); break;
-			case '[': pos++;
-				addSymbol(TOKEN_LBRACKET); break;
-			case ']': pos++;
-				addSymbol(TOKEN_RBRACKET); break;
-			case ';': pos++;
-				addSymbol(TOKEN_SEMICOLON); break;
-			case '.': pos++;
-				addSymbol(TOKEN_DOT); break;
-			case '~': pos++;
-				addSymbol(TOKEN_TILDE); break;
-			case '*': pos++;
-				addSymbol(TOKEN_ASTERISK); break;
-			case ',': pos++;
-				addSymbol(TOKEN_COMMA); break;
+			case '^': pos++; addSymbol(TOKEN_CARET); break;
+			case '+': pos++; addSymbol(TOKEN_PLUS); break;
+			case '-': pos++; addSymbol(TOKEN_MINUS); break;
+			case '{': pos++; addSymbol(TOKEN_LBRACE); break;
+			case '}': pos++; addSymbol(TOKEN_RBRACE); break;
+			case '(': pos++; addSymbol(TOKEN_LPAREN); break;
+			case ')': pos++; addSymbol(TOKEN_RPAREN); break;
+			case '[': pos++; addSymbol(TOKEN_LBRACKET); break;
+			case ']': pos++; addSymbol(TOKEN_RBRACKET); break;
+			case ';': pos++; addSymbol(TOKEN_SEMICOLON); break;
+			case '.': pos++; addSymbol(TOKEN_DOT); break;
+			case '~': pos++; addSymbol(TOKEN_TILDE); break;
+			case '*': pos++; addSymbol(TOKEN_ASTERISK); break;
+			case ',': pos++; addSymbol(TOKEN_COMMA); break;
 
 			default: lexerError("Invalid ascii codepoint: %c", chars[pos]);
 		}
 	}
 
 	// Pad end with EOF tokens
-	for(int i = 0; i < 4; i++) {
+	for(int i = 0; i < 4; i++)
 		setTerminator();
-	}
 }
 
 
