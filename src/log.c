@@ -5,33 +5,6 @@
 
 
 
-void printPointer(void* value) {
-	printf("%p\n", value);
-}
-
-
-
-void printInt(int value) {
-	printf("%d\n", value);
-}
-
-
-
-void printString(char* value) {
-	printf("%s\n", value);
-}
-
-
-
-void println(char* format, ...) {
-	va_list args;
-	va_start(args, format);
-	vprintf(format, args);
-	printf("\n");
-}
-
-
-
 void eyreError_(char* format, const char* file, int line, ...) {
 	va_list args;
 	va_start(args, line);

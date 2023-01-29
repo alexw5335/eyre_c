@@ -25,7 +25,7 @@ add_executable(
         src/symbol.h
         src/resolve.c
         src/resolve.h
-)
+        src/assemble.c src/assemble.h)
 
 target_compile_definitions(
         eyre

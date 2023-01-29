@@ -39,6 +39,8 @@ typedef enum {
 	NODE_NAMESPACE,
 	NODE_ENUM,
 	NODE_LABEL,
+	NODE_DOT,
+	NODE_INVOKE,
 	NODE_COUNT
 } EyreNodeType;
 
@@ -63,6 +65,8 @@ typedef enum EyreBinaryOp {
 	BINARY_XOR,
 	BINARY_SHL,
 	BINARY_SHR,
+	BINARY_DOT,
+	BINARY_INV,
 	BINARY_COUNT
 } EyreBinaryOp;
 
@@ -278,7 +282,7 @@ typedef struct SrcFile {
 	char*  path;
 	char*  chars;
 	int    size;
-	void*  nodes;
+	void** nodes;
 	short* nodeLines;
 	int    nodeCount;
 } SrcFile;
@@ -316,6 +320,14 @@ typedef struct {
 	int length;
 	int* data;
 } ScopeIntern;
+
+
+
+typedef struct {
+	int   pos;
+	int   disp;
+	void* symbol;
+} Relocation;
 
 
 

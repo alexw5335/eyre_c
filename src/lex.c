@@ -456,6 +456,9 @@ void eyrePrintTokens() {
 	for(int i = 0; i < tokenCount; i++) {
 		u8 type = tokenTypes[i];
 		u32 value = tokens[i];
+
+		printf("Line %d:  ", tokenLines[i]);
+
 		if(type == TOKEN_INT) {
 			printf("INT   %u\n", value);
 		} else if(type == TOKEN_ID) {

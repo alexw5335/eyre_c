@@ -2,6 +2,8 @@
 #include "symbol.h"
 #include "intern.h"
 
+
+
 void* eyreAddSymbol(char type, int scope, int name, int size) {
 	SymBase* symbol = eyreAllocPersistent(size);
 	symbol->type = type;

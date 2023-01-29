@@ -1,6 +1,8 @@
 #include "eyre.h"
 #include "gen.h"
 #include "intern.h"
+#include "parse.h"
+#include "resolve.h"
 
 
 
@@ -10,8 +12,12 @@ void test() {
 	eyreCreateSrcFile(&file, eyreGetLocalFile("test.txt"));
 	eyreLex(&file);
 	eyrePrintTokens();
+	printNewline();
 	eyreParse(&file);
 	eyrePrintNodes();
+	printNewline();
+	eyreResolve(&file);
+	eyreAssemble(&file);
 }
 
 

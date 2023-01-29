@@ -10,7 +10,29 @@
 
 
 
+// Temp
+
+
+
+void eyreAssemble(SrcFile* srcFile);
+
+
+
+// Util
+
+
+
 void checkCapacity(void** pData, int size, int* pCapacity, int elementSize);
+
+void printPointer(void* value);
+
+void printInt(int value);
+
+void printString(char* value);
+
+void println(char* format, ...);
+
+void printNewline();
 
 
 
@@ -49,6 +71,8 @@ void eyreFree(void* pointer);
 void eyreCheckListCapacity(List* list, int elementSize);
 
 void* eyreAllocPersistent(int size);
+
+void eyreAllocPersistentContiguous(void** start, int size);
 
 
 

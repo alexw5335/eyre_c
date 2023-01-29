@@ -23,8 +23,9 @@ typedef struct {
 
 
 typedef struct {
-	char type;
-	int nameIntern;
+	char  type;
+	int   nameIntern;
+	void* symbol;
 } SymNode;
 
 
@@ -122,6 +123,23 @@ typedef struct {
 	char type;
 	LabelSymbol* symbol;
 } LabelNode;
+
+
+
+typedef struct {
+	char     type;
+	void*    left;
+	SymNode* right;
+} DotNode;
+
+
+
+typedef struct {
+	char   type;
+	int    argCount;
+	void** args;
+	void*  invoker;
+} InvokeNode;
 
 
 

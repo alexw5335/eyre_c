@@ -1,4 +1,4 @@
 namespace main
 
 label:
-	add rax, rax
+	mov rax, label

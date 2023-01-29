@@ -1,8 +1,10 @@
 #include "defs.h"
+
 char* eyreNodeNames[NODE_COUNT] = {
 	"REG", "INT", "SYM", "BINARY",
 	"UNARY", "MEM", "IMM", "INS",
-	"STRUCT", "SCOPE_END", "NAMESPACE", "ENUM"
+	"STRUCT", "SCOPE_END", "NAMESPACE", "ENUM",
+	"LABEL", "DOT", "INVOKE"
 };
 
 char* eyreUnaryOpSymbols[UNARY_COUNT] = {
@@ -10,7 +12,7 @@ char* eyreUnaryOpSymbols[UNARY_COUNT] = {
 };
 
 char* eyreBinaryOpSymbols[BINARY_COUNT] = {
-	"+", "-", "*", "/", "&", "|", "^", "<<", ">>"
+	"+", "-", "*", "/", "&", "|", "^", "<<", ">>", "", ""
 };
 
 char* eyreByteRegNames[16] = {

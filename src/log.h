@@ -3,16 +3,6 @@
 
 
 
-void printPointer(void* value);
-
-void printInt(int value);
-
-void printString(char* value);
-
-void println(char* format, ...);
-
-
-
 // Always results in termination, logged to stderr
 void eyreError_(char* format, const char* file, int line, ...);
 

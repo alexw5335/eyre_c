@@ -216,6 +216,34 @@ int eyreInternSymbol(SymBase* symbol) {
 
 
 
+void* eyreResolveSymbol(int scope, int name) {
+	int hash = scope * 31 + name;
+	int bucketIndex = (unsigned int) hash % symbolsBucketsSize;
+	int* buckets = symbolsBuckets;
+	int bucket = buckets[bucketIndex];
+
+	if(bucket == 0) return NULL;
+
+	if((bucket & 1) == 0) {
+		int internIndex = bucket >> 1;
+		if(matchSymbol(scope, name, internIndex))
+			return symbols[internIndex];
+		return NULL;
+	}
+
+	InternNode* node = &nodes[bucket >> 1];
+
+	while(1) {
+		if(matchSymbol(scope, name, node->intern))
+			return symbols[node->intern];
+		if(node->next == 0)
+			return NULL;
+		node = &nodes[node->next];
+	}
+}
+
+
+
 StringIntern* eyreGetString(int id) {
 	return &strings[id];
 }

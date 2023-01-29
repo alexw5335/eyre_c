@@ -6,6 +6,47 @@
 
 
 
+// Util
+
+
+
+void printPointer(void* value) {
+	printf("%p\n", value);
+}
+
+
+
+void printInt(int value) {
+	printf("%d\n", value);
+}
+
+
+
+void printString(char* value) {
+	printf("%s\n", value);
+}
+
+
+
+void println(char* format, ...) {
+	va_list args;
+	va_start(args, format);
+	vprintf(format, args);
+	printf("\n");
+}
+
+
+
+void printNewline() {
+	printf("\n");
+}
+
+
+
+// File
+
+
+
 void eyreCreateSrcFile(SrcFile* srcFile, char* path) {
 	HANDLE handle = CreateFileA(
 		path,
@@ -69,11 +110,12 @@ char* eyreGetLocalFile(char* fileName) {
 
 
 inline void checkCapacity(void** pData, int size, int* pCapacity, int elementSize) {
+	int capacity = *pCapacity * elementSize;
 	if(*pData == NULL) {
-		*pData = malloc(*pCapacity);
-	} else if(size >= *pCapacity) {
+		*pData = malloc(capacity);
+	} else if(size >= capacity) {
 		*pCapacity = size << 2;
-		*pData = realloc(*pData, *pCapacity);
+		*pData = realloc(*pData, size << 2);
 	}
 }
 
@@ -107,15 +149,30 @@ static void* persistentEnd;
 
 
 
-void* eyreAllocPersistent(int size) {
-	if(size < 8)
-		size = (size + 7) & -8;
+static void newPersistentBlock() {
+	persistentStart = eyreAlloc(persistentSize);
+	persistentCurrent = persistentStart;
+	persistentEnd = persistentCurrent + persistentSize;
+}
 
+
+
+void eyreAllocPersistentContiguous(void** start, int size) {
 	if(persistentCurrent + size > persistentEnd) {
-		persistentStart = eyreAlloc(persistentSize);
-		persistentCurrent = persistentStart;
-		persistentEnd = persistentCurrent + persistentSize;
+		newPersistentBlock();
+		*start = persistentCurrent;
 	}
+
+	persistentCurrent += size;
+}
+
+
+
+void* eyreAllocPersistent(int size) {
+	persistentCurrent = (void*) ((u64) persistentCurrent + 7 & -8);
+
+	if(persistentCurrent + size > persistentEnd)
+		newPersistentBlock();
 
 	void* pointer = persistentCurrent;
 	persistentCurrent += size;

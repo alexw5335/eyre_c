@@ -48,7 +48,7 @@ static int currentScope = 0;
 
 #define parserErrorOffset(format, offset, ...) parserError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
 
-#define parserError(format, ...) parserError_(format, 0, __FILE__, __LINE__, ##__VA_ARGS__)
+#define parserError(format, ...) parserError_(format, 1, __FILE__, __LINE__, ##__VA_ARGS__)
 
 static void parserError_(char* format, int offset, char* file, int line, ...) {
 	fprintf(stderr, "Parser error at %s:%d: ", srcFile->path, tokenLines[pos - offset]);
@@ -75,7 +75,7 @@ static inline void addNode(void* node) {
 
 
 static void* createNode(int size, EyreNodeType type) {
-	EyreNodeType* node = nodeDataPos;
+	char* node = nodeDataPos;
 	*node = type;
 	nodeDataPos += (size + 7) & -8; // Align by 8.
 	if(nodeDataPos >= nodeDataEnd)
@@ -142,6 +142,8 @@ static void* parseExpression(int precedence);
 
 static int opPrecedence(char op) {
 	switch(op) {
+		case BINARY_DOT: return 6;
+		case BINARY_INV: return 5;
 		case BINARY_MUL:
 		case BINARY_DIV: return 4;
 		case BINARY_ADD:
@@ -168,6 +170,8 @@ static char getBinaryOp(char tokenType) {
 		case TOKEN_AMPERSAND: return BINARY_AND;
 		case TOKEN_PIPE:      return BINARY_OR;
 		case TOKEN_CARET:     return BINARY_XOR;
+		case TOKEN_DOT:       return BINARY_DOT;
+		case TOKEN_LPAREN:    return BINARY_INV;
 		default:              return -1;
 	}
 }
@@ -247,7 +251,36 @@ static void* parseExpression(int precedence) {
 		if(precedence2 < precedence) break;
 		pos++;
 
-		atom = createBinaryNode(op, atom, parseExpression(precedence2 + 1));
+		if(op == BINARY_DOT) {
+			DotNode* node = createNode(sizeof(DotNode), NODE_DOT);
+			node->left = atom;
+			node->right = parseExpression(precedence2 + 1);
+			if(node->right->type != NODE_SYM)
+				parserError("Expected id node, found: %s", eyreNodeNames[node->right->type]);
+			atom = node;
+		} else if(op == BINARY_INV) {
+			InvokeNode* node = createNode(sizeof(InvokeNode), NODE_INVOKE);
+			node->invoker = atom;
+			atom = node;
+
+			void** args = eyreAllocPersistent(sizeof(void*));
+			int argCount = 0;
+
+			while(1) {
+				if(tokenTypes[pos] == TOKEN_RPAREN) break;
+				eyreAllocPersistentContiguous((void*) &args, argCount * sizeof(void*));
+				args[argCount++] = parseExpression(0);
+				if(tokenTypes[pos] != TOKEN_COMMA) break;
+				pos++;
+			}
+
+			expectToken(TOKEN_RPAREN);
+
+			node->args = args;
+			node->argCount = argCount;
+		} else {
+			atom = createBinaryNode(op, atom, parseExpression(precedence2 + 1));
+		}
 	}
 
 	return atom;
@@ -494,8 +527,25 @@ void eyrePrintNode(void* node) {
 	} else if(type == NODE_LABEL) {
 		LabelNode* n = node;
 		printf("%s:\n", eyreGetString(n->symbol->base.name)->data);
-	} else {
-		parserError("Invalid node for printing: %d", eyreNodeNames[type]);
+	} else if(type == NODE_SYM) {
+		SymNode* n = node;
+		printf("%s", eyreGetString(n->nameIntern)->data);
+	} else if(type == NODE_DOT) {
+		DotNode* n = node;
+		eyrePrintNode(n->left);
+		printf(".");
+		printf("%s", eyreGetString(n->right->nameIntern)->data);
+	} else if(type == NODE_INVOKE) {
+		InvokeNode* n = node;
+		eyrePrintNode(n->invoker);
+		printf("(");
+		for(int i = 0; i < n->argCount; i++) {
+			eyrePrintNode(n->args[i]);
+			if(i != n->argCount - 1) printf(", ");
+		}
+		printf(")");
+	}else {
+		eyreError("Invalid node for printing: %d (%s)", type, eyreNodeNames[type]);
 	}
 }
 
