@@ -20,6 +20,8 @@ ScopeIntern* eyreGetScope(int id);
 
 SymBase* eyreGetSymbol(int id);
 
+void eyrePrintSymbols();
+
 void eyreInitInterns();
 
 int eyreInternToRegister(int intern);

@@ -242,18 +242,49 @@ void* eyreResolveSymbol(int scope, int name) {
 	}
 }
 
-
+static ScopeIntern globalScope = { .data = NULL, .length = 0, .hash = 0 };
 
 StringIntern* eyreGetString(int id) {
 	return &strings[id];
 }
 
 ScopeIntern* eyreGetScope(int id) {
+	if(id == 0) return &globalScope;
 	return &scopes[id];
 }
 
 SymBase* eyreGetSymbol(int id) {
 	return symbols[id];
+}
+
+
+
+// Printing
+
+
+
+static void printSymbol(SymBase* symbol) {
+	ScopeIntern* scope = eyreGetScope(symbol->scope);
+	for(int i = 0; i < scope->length; i++) {
+		printf("%s.", eyreGetString(scope->data[i])->data);
+	}
+	printf("%s\n", eyreGetString(symbol->name)->data);
+}
+
+
+
+void eyrePrintSymbols() {
+	for(int i = 0; i < symbolsBucketsSize; i++) {
+		int bucket = symbolsBuckets[i];
+
+		if(bucket == 0)
+			continue;
+
+		if((bucket & 1) == 0) {
+			printSymbol(symbols[bucket >> 1]);
+			continue;
+		}
+	}
 }
 
 

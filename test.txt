@@ -1,13 +1,14 @@
 namespace Main {
 	namespace Nested {
-
+		label2:
 	}
+
 	label:
 		mov rax, label
 }
 
+
 namespace Test {
 	testing:
-		mov rax, Main.label
+		mov rax, Main.Nested.label2
 }
-

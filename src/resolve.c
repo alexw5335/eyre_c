@@ -12,10 +12,6 @@ static int scopeSize;
 
 
 static SymBase* resolveSymbol(int name) {
-	SymBase* globalSymbol = eyreResolveSymbol(0, name);
-	if(globalSymbol != NULL)
-		return globalSymbol;
-
 	for(int i = scopeSize - 1; i >= 0; i--) {
 		int scope = scopeStack[i];
 		SymBase* symbol = eyreResolveSymbol(scope, name);
@@ -46,23 +42,25 @@ static int getScope(void* symbol) {
 static SymBase* resolveDot(DotNode* node) {
 	int name = node->right->nameIntern;
 	char leftType = *(char*) node->left;
+	SymBase* symbol;
 
 	if(leftType == NODE_SYM) {
 		SymNode* left = node->left;
 		SymBase* scopedSymbol = resolveSymbol(left->nameIntern);
 		int scope = getScope(scopedSymbol);
-		SymBase* symbol = eyreResolveSymbol(scope, name);
-		if(symbol == NULL)
-			eyreError("Could not resolve symbol: %s", eyreGetString(name)->data);
-		return symbol;
-	}
-
-	if(leftType == NODE_DOT) {
+		symbol = eyreResolveSymbol(scope, name);
+	} else if(leftType == NODE_DOT) {
+		SymBase* left = resolveDot(node->left);
+		int scope = getScope(left);
+		symbol = eyreResolveSymbol(scope, name);
+	} else {
+		eyreError("Invalid dot node");
 		return NULL;
 	}
 
-	eyreError("Invalid dot node: %d", leftType);
-	return NULL;
+	if(symbol == NULL)
+		eyreError("Could not resolve symbol: %s", eyreGetString(name)->data);
+	return symbol;
 }
 
 
@@ -91,7 +89,8 @@ static void resolveSymbols(void* n) {
 
 
 void eyreResolve(SrcFile* inputSrcFile) {
-	scopeSize = 0;
+	scopeStack[0] = 0;
+	scopeSize = 1;
 
 	for(int i = 0; i < inputSrcFile->nodeCount; i++) {
 		void* n = inputSrcFile->nodes[i];

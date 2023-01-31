@@ -33,18 +33,9 @@ static SrcFile* srcFile;
 #define scopesCapacity 32
 
 static int scopeInterns[scopesCapacity];
-
-static int scopes[scopesCapacity];
-
-static int scopeHashes[scopesCapacity];
-
 static int scopesSize = 0;
-
 static int currentScope = 0;
-
-static int currentScopeHash = 0;
-
-static int currentNamespace = 0;
+static int currentNamespace = 0; // Only for single-line namespaces
 
 
 
@@ -307,19 +298,18 @@ static void* parseExpression(int precedence) {
 
 
 
-static void parseScope();
+static void parseScope(int scope);
 
 
 
-static int addScope(int intern) {
+static int addScope(int name) {
 	if(scopesSize >= scopesCapacity)
 		parserError("Too many scopes");
-	int hash = scopeHashes[scopesSize - 1] * 31 + intern;
-	currentScope = eyreInternScope(scopeInterns, scopesSize, hash);
-	scopeHashes[scopesSize] = hash;
-	scopes[scopesSize] = currentScope;
-	scopeInterns[scopesSize++] = intern;
-	return currentScope;
+	int hash = 0;
+	scopeInterns[scopesSize++] = name;
+	for(int i = 0; i < scopesSize; i++)
+		hash = hash * 31 + scopeInterns[i];
+	return eyreInternScope(scopeInterns, scopesSize, hash);
 }
 
 
@@ -327,18 +317,18 @@ static int addScope(int intern) {
 static void parseNamespace() {
 	int name = parseId();
 	int parentScope = currentScope;
-	int scope = addScope(name);
+	int thisScope = addScope(name);
 
 	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, parentScope, name, sizeof(NamespaceSymbol));
 	NamespaceNode* node = createNode(sizeof(NamespaceNode), NODE_NAMESPACE);
 	node->name = name;
 	node->symbol = symbol;
-	node->symbol->thisScope = scope;
+	node->symbol->thisScope = thisScope;
 
 	if(tokenTypes[pos] == TOKEN_LBRACE) {
 		pos++;
 		addNode(node);
-		parseScope();
+		parseScope(thisScope);
 		expectToken(TOKEN_RBRACE);
 		addScopeEndNode();
 	} else {
@@ -346,8 +336,8 @@ static void parseNamespace() {
 		if(currentNamespace != 0)
 			addScopeEndNode();
 		addNode(node);
-		currentNamespace = scope;
-		currentScope = scope;
+		parseScope(thisScope);
+		currentNamespace = node->symbol->thisScope;
 	}
 }
 
@@ -446,7 +436,11 @@ static InsNode* parseInstruction(EyreMnemonic mnemonic) {
 
 
 
-static void parseScope() {
+// Must be paired with addScope
+static void parseScope(int scope) {
+	int prevScope = currentScope;
+	currentScope = scope;
+
 	while(1) {
 		u8 type = tokenTypes[pos];
 		u32 token = tokens[pos];
@@ -494,7 +488,8 @@ static void parseScope() {
 
 	}
 
-	currentScope = scopes[--scopesSize];
+	currentScope = prevScope;
+	scopesSize--;
 }
 
 
@@ -508,7 +503,7 @@ void eyreParse(SrcFile* inputSrcFile) {
 	nodeCount = 0;
 	srcFile = inputSrcFile;
 
-	parseScope();
+	parseScope(0);
 
 	if(currentNamespace != 0)
 		addScopeEndNode();

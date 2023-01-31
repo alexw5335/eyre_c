@@ -16,6 +16,8 @@ void test() {
 	eyreParse(&file);
 	eyrePrintNodes();
 	printNewline();
+	eyrePrintSymbols();
+	printNewline();
 	eyreResolve(&file);
 	eyreAssemble(&file);
 }
