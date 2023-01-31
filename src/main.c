@@ -11,8 +11,8 @@ void test() {
 	SrcFile file;
 	eyreCreateSrcFile(&file, eyreGetLocalFile("test.txt"));
 	eyreLex(&file);
-	eyrePrintTokens();
-	printNewline();
+	//eyrePrintTokens();
+	//printNewline();
 	eyreParse(&file);
 	eyrePrintNodes();
 	printNewline();

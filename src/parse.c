@@ -32,6 +32,8 @@ static SrcFile* srcFile;
 
 #define scopesCapacity 32
 
+static int scopeInterns[scopesCapacity];
+
 static int scopes[scopesCapacity];
 
 static int scopeHashes[scopesCapacity];
@@ -39,6 +41,10 @@ static int scopeHashes[scopesCapacity];
 static int scopesSize = 0;
 
 static int currentScope = 0;
+
+static int currentScopeHash = 0;
+
+static int currentNamespace = 0;
 
 
 
@@ -68,7 +74,10 @@ static void parserError_(char* format, int offset, char* file, int line, ...) {
 static inline void addNode(void* node) {
 	if(nodeCount >= nodeCapacity)
 		parserError("Too many nodes");
-	nodeLines[nodeCount] = tokenLines[pos - 1];
+	if(pos >= tokenCount)
+		nodeLines[nodeCount] = tokenLines[tokenCount - 1];
+	else
+		nodeLines[nodeCount] = tokenLines[pos - 1];
 	nodes[nodeCount++] = node;
 }
 
@@ -102,6 +111,12 @@ static void* createBinaryNode(char op, void* left, void* right) {
 	node->left = left;
 	node->right = right;
 	return node;
+}
+
+
+
+static void addScopeEndNode() {
+	addNode(createNode(sizeof(ScopeEndNode), NODE_SCOPE_END));
 }
 
 
@@ -292,11 +307,18 @@ static void* parseExpression(int precedence) {
 
 
 
+static void parseScope();
+
+
+
 static int addScope(int intern) {
-	int hash = scopeHashes[scopesSize] * 31 + intern;
+	if(scopesSize >= scopesCapacity)
+		parserError("Too many scopes");
+	int hash = scopeHashes[scopesSize - 1] * 31 + intern;
+	currentScope = eyreInternScope(scopeInterns, scopesSize, hash);
 	scopeHashes[scopesSize] = hash;
-	scopes[scopesSize++] = intern;
-	currentScope = eyreInternScope(scopes, scopesSize, hash);
+	scopes[scopesSize] = currentScope;
+	scopeInterns[scopesSize++] = intern;
 	return currentScope;
 }
 
@@ -304,12 +326,29 @@ static int addScope(int intern) {
 
 static void parseNamespace() {
 	int name = parseId();
+	int parentScope = currentScope;
 	int scope = addScope(name);
-	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, scope, name, sizeof(NamespaceSymbol));
+
+	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, parentScope, name, sizeof(NamespaceSymbol));
 	NamespaceNode* node = createNode(sizeof(NamespaceNode), NODE_NAMESPACE);
 	node->name = name;
 	node->symbol = symbol;
-	addNode(node);
+	node->symbol->thisScope = scope;
+
+	if(tokenTypes[pos] == TOKEN_LBRACE) {
+		pos++;
+		addNode(node);
+		parseScope();
+		expectToken(TOKEN_RBRACE);
+		addScopeEndNode();
+	} else {
+		expectTerminator();
+		if(currentNamespace != 0)
+			addScopeEndNode();
+		addNode(node);
+		currentNamespace = scope;
+		currentScope = scope;
+	}
 }
 
 static void parseEnum(int isBitmask) {}
@@ -407,20 +446,23 @@ static InsNode* parseInstruction(EyreMnemonic mnemonic) {
 
 
 
-// Public functions
-
-
-
-void eyreParse(SrcFile* inputSrcFile) {
-	pos = 0;
-	nodeCount = 0;
-	srcFile = inputSrcFile;
-
-	while(pos < tokenCount) {
+static void parseScope() {
+	while(1) {
 		u8 type = tokenTypes[pos];
 		u32 token = tokens[pos];
 
-		if(type == TOKEN_END) break;
+		if(type == TOKEN_SEMICOLON) {
+			pos++;
+			continue;
+		}
+
+		if(type == TOKEN_RBRACE)
+			break;
+
+		if(type == TOKEN_END) {
+			pos++;
+			break;
+		}
 
 		if(type == TOKEN_ID) {
 			pos++;
@@ -449,7 +491,27 @@ void eyreParse(SrcFile* inputSrcFile) {
 		}
 
 		parserError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
+
 	}
+
+	currentScope = scopes[--scopesSize];
+}
+
+
+
+// Public functions
+
+
+
+void eyreParse(SrcFile* inputSrcFile) {
+	pos = 0;
+	nodeCount = 0;
+	srcFile = inputSrcFile;
+
+	parseScope();
+
+	if(currentNamespace != 0)
+		addScopeEndNode();
 
 	srcFile->nodes = eyreAlloc(nodeCount * 8);
 	memcpy(srcFile->nodes, nodes, nodeCount * 8);
@@ -544,7 +606,9 @@ void eyrePrintNode(void* node) {
 			if(i != n->argCount - 1) printf(", ");
 		}
 		printf(")");
-	}else {
+	} else if(type == NODE_SCOPE_END) {
+		printf("scope end\n");
+	} else {
 		eyreError("Invalid node for printing: %d (%s)", type, eyreNodeNames[type]);
 	}
 }

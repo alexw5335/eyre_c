@@ -38,6 +38,7 @@ typedef struct {
 
 typedef struct {
 	SymBase base;
+	int thisScope;
 } NamespaceSymbol;
 
 
