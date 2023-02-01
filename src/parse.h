@@ -9,6 +9,12 @@
 
 typedef struct {
 	char type;
+} AstNode;
+
+
+
+typedef struct {
+	char type;
 	int value;
 } IntNode;
 
@@ -16,8 +22,8 @@ typedef struct {
 
 typedef struct {
 	char type;
-	char regType;
-	char regValue;
+	char width;
+	char value;
 } RegNode;
 
 
@@ -50,10 +56,10 @@ typedef struct {
 typedef struct {
 	char type;
 	char mnemonic;
-	void* op1;
-	void* op2;
-	void* op3;
-	void* op4;
+	AstNode* op1;
+	AstNode* op2;
+	AstNode* op3;
+	AstNode* op4;
 } InsNode;
 
 

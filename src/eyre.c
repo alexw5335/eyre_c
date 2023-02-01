@@ -3,6 +3,8 @@
 #include "eyre.h"
 #include <processenv.h>
 #include "log.h"
+#include <processthreadsapi.h>
+#include <synchapi.h>
 
 
 
@@ -101,6 +103,80 @@ char* eyreGetLocalFile(char* fileName) {
 	file[index + fileNameLength] = 0;
 
 	return file;
+}
+
+
+
+void eyreRunCommand(char* command) {
+	STARTUPINFOA startUpInfo = { };
+	PROCESS_INFORMATION processInfo = { };
+
+	int result = CreateProcessA(
+		NULL,
+		command,
+		NULL,
+		NULL,
+		1,
+		0,
+		NULL,
+		NULL,
+		&startUpInfo,
+		&processInfo
+	);
+
+	if(result == 0)
+		eyreError("CreateProcess failed for command \"%s\"", command);
+
+	WaitForSingleObject(processInfo.hProcess, 5000);
+
+	CloseHandle(processInfo.hProcess);
+}
+
+
+
+void eyreRunCommandArgs(int num, ...) {
+	int capacity = 256;
+	char buffer[capacity];
+	int pos = 0;
+	va_list list;
+	va_start(list, num);
+	for(int i = 0; i < num; i++) {
+		char* arg = va_arg(list, char*);
+		int length = strlen(arg);
+		if(pos + length + 4 >= capacity)
+			eyreError("Command builder buffer overflow");
+		buffer[pos++] = '"';
+		memcpy(&buffer[pos], arg, length);
+		pos += length;
+		buffer[pos++] = '"';
+		buffer[pos++] = ' ';
+	}
+	buffer[pos] = 0;
+	eyreRunCommand(buffer);
+}
+
+
+
+void eyreWriteFile(char* path, int dataSize, void* data) {
+	HANDLE handle = CreateFileA(
+		path,
+		GENERIC_WRITE,
+		FILE_SHARE_WRITE,
+		NULL,
+		CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL
+	);
+
+	if(handle == INVALID_HANDLE_VALUE)
+		eyreError("Failed to create writeable file: \"%s\"", path);
+
+	unsigned long written;
+	if(!WriteFile(handle, data, dataSize, &written, NULL))
+		eyreError("Failed to write %d bytes from %p to file \"%s\"", dataSize, data, path);
+
+	if(!CloseHandle(handle))
+		eyreError("Failed to close handle to file \"%s\"", path);
 }
 
 

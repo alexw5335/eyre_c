@@ -34,6 +34,12 @@ void println(char* format, ...);
 
 void printNewline();
 
+void eyreRunCommand(char* command);
+
+void eyreRunCommandArgs(int num, ...);
+
+void eyreWriteFile(char* path, int dataSize, void* data);
+
 
 
 // General
@@ -44,7 +50,7 @@ void eyreCreateSrcFile(SrcFile* srcFile, char* path);
 
 char* eyreGetLocalFile(char* fileName);
 
-EyreGroup eyreGetEncodings(int mnemonic);
+EyreGroup* eyreGetEncodings(int mnemonic);
 
 
 

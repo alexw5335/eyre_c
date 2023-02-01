@@ -8,6 +8,25 @@
 
 static int scopeStack[32];
 static int scopeSize;
+static SrcFile* srcFile;
+static int pos = 0;
+
+
+
+#define assemblerErrorOffset(format, offset, ...) resolveError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
+
+#define assemblerError(format, ...) resolveError_(format, 1, __FILE__, __LINE__, ##__VA_ARGS__)
+
+static void resolveError_(char* format, int offset, char* file, int line, ...) {
+	if(pos - offset >= srcFile->nodeCount)
+		eyreError("Invalid resolver error node index: %d", pos - offset);
+	fprintf(stdout, "Resolver error at %s:%d: ", srcFile->path, srcFile->nodeLines[pos - offset]);
+	va_list args;
+	va_start(args, line);
+	vfprintf(stdout, format, args);
+	fprintf(stdout, "\n");
+	eyreError_("Resolver error", file, line);
+}
 
 
 
@@ -19,7 +38,7 @@ static SymBase* resolveSymbol(int name) {
 			return symbol;
 	}
 
-	eyreError("Could not resolve symbol: %s", eyreGetString(name)->data);
+	assemblerError("Could not resolve symbol: %s", eyreGetString(name)->data);
 	return NULL;
 }
 
@@ -33,7 +52,7 @@ static int getScope(void* symbol) {
 		return s->thisScope;
 	}
 
-	eyreError("Invalid scoped symbol: %d", base->type);
+	assemblerError("Invalid scoped symbol: %d", base->type);
 	return 0;
 }
 
@@ -54,12 +73,12 @@ static SymBase* resolveDot(DotNode* node) {
 		int scope = getScope(left);
 		symbol = eyreResolveSymbol(scope, name);
 	} else {
-		eyreError("Invalid dot node");
+		assemblerError("Invalid dot node");
 		return NULL;
 	}
 
 	if(symbol == NULL)
-		eyreError("Could not resolve symbol: %s", eyreGetString(name)->data);
+		assemblerError("Could not resolve symbol: %s", eyreGetString(name)->data);
 	return symbol;
 }
 
@@ -89,11 +108,16 @@ static void resolveSymbols(void* n) {
 
 
 void eyreResolve(SrcFile* inputSrcFile) {
+	int prevPos = pos;
+	SrcFile* prevSrcFile = srcFile;
+	pos = 0;
+	srcFile = inputSrcFile;
+
 	scopeStack[0] = 0;
 	scopeSize = 1;
 
-	for(int i = 0; i < inputSrcFile->nodeCount; i++) {
-		void* n = inputSrcFile->nodes[i];
+	while(pos < srcFile->nodeCount) {
+		void* n = srcFile->nodes[pos++];
 		char type = *(char*) n;
 
 		if(type == NODE_NAMESPACE) {
@@ -113,4 +137,7 @@ void eyreResolve(SrcFile* inputSrcFile) {
 			resolveSymbols(node->op4);
 		}
 	}
+
+	pos = prevPos;
+	srcFile = prevSrcFile;
 }

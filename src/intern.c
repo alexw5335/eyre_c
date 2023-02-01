@@ -284,8 +284,16 @@ void eyrePrintSymbols() {
 			printSymbol(symbols[bucket >> 1]);
 			continue;
 		}
+
+		InternNode node;
+
+		do {
+			node = nodes[bucket >> 1];
+			printSymbol(symbols[node.intern]);
+		} while(node.next != 0);
 	}
 }
+
 
 
 

@@ -48,14 +48,13 @@ char* eyreSpecifierNames[] = {
 	"RM_CL"
 };
 
+
 char* eyreMnemonicNames[MNEMONIC_COUNT] = {
 	"add8", "or8", "adc8", "sbb8",
 	"and8", "sub8", "xor8", "cmp8",
 	"jmp8", "add", "or", "adc",
 	"sbb", "and", "sub", "xor",
-	"cmp", "push", "push_fs", "push_gs",
-	"pushw_fs", "pushw_gs", "pop", "pop_fs",
-	"pop_gs", "popw_fs", "popw_gs", "movsxd",
+	"cmp", "push", "pop", "movsxd",
 	"movsx", "movzx", "insb", "insw",
 	"insd", "outsb", "outsw", "outsd",
 	"ja", "jae", "jb", "jbe",
@@ -87,6 +86,7 @@ char* eyreMnemonicNames[MNEMONIC_COUNT] = {
 	"call", "callf", "jmp", "jmpf",
 	"rdrand", "rdseed",
 };
+
 
 
 char* eyreCompoundOperandsNames[COMPOUND_COUNT] = {

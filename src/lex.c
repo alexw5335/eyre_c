@@ -38,7 +38,7 @@ char* eyreTokenNames[TOKEN_COUNT] = {
 static u8 idMap[32] = {
 	0,0,0,0,0,0,
 	0b11111111, // 48
-	0b00000001, // 56
+	0b00000011, // 56
 	0b11111110, // 64
 	0b11111111, // 72
 	0b11111111, // 80
@@ -83,14 +83,14 @@ int lineCount;
 
 
 
-#define lexerError(format, ...) lexerError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
+#define lexError(format, ...) lexError_(format, __FILE__, __LINE__, ##__VA_ARGS__)
 
-static void lexerError_(char* format, char* file, int line, ...) {
-	fprintf(stderr, "Lexer error at %s:%d: ", srcFile.path, lineCount);
+static void lexError_(char* format, char* file, int line, ...) {
+	fprintf(stdout, "Lexer error at %s:%d: ", srcFile.path, lineCount);
 	va_list args;
 	va_start(args, line);
-	vfprintf(stderr, format, args);
-	fprintf(stderr, "\n");
+	vfprintf(stdout, format, args);
+	fprintf(stdout, "\n");
 	eyreError_("Lexer error", file, line);
 }
 
@@ -116,7 +116,7 @@ static inline void setNewline() {
 
 static void addToken(EyreTokenType type, int value) {
 	if(tokenCount >= TOKEN_CAPACITY)
-		lexerError("Too many tokens: %d", TOKEN_CAPACITY);
+		lexError("Too many tokens: %d", TOKEN_CAPACITY);
 	tokenTypes[tokenCount] = type;
 	tokens[tokenCount] = value;
 	tokenLines[tokenCount] = lineCount;
@@ -148,16 +148,16 @@ static void parseBinary() {
 		pos++;
 
 		if(number & (1LL << 63))
-			lexerError("Integer literal out of range");
+			lexError("Integer literal out of range");
 
 		number = (number << 1) | c;
 	}
 
 	if(number > UINT32_MAX)
-		lexerError("64-bit integers not yet supported");
+		lexError("64-bit integers not yet supported");
 
 	if(isIdChar(chars[pos]))
-		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
+		lexError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
 
 	addToken(TOKEN_INT, (int) number);
 }
@@ -187,16 +187,16 @@ static void parseHex() {
 		pos++;
 
 		if((value & (0b1111LL << 60)) != 0L)
-			lexerError("Integer literal out of range");
+			lexError("Integer literal out of range");
 
 		value = (value << 4) | c;
 	}
 
 	if(value > UINT32_MAX)
-		lexerError("64-bit integers are not yet supported");
+		lexError("64-bit integers are not yet supported");
 
 	if(isIdChar(chars[pos]))
-		lexerError("Invalid value char: %d ('%c')", chars[pos], chars[pos]);
+		lexError("Invalid value char: %d ('%c')", chars[pos], chars[pos]);
 
 	addToken(TOKEN_INT, (int) value);
 }
@@ -219,16 +219,16 @@ static void parseDecimal() {
 		pos++;
 
 		if(number & (0xFFLL << 56))
-			lexerError("Integer literal out of range");
+			lexError("Integer literal out of range");
 
 		number = (number * 10) + c;
 	}
 
 	if(number > UINT32_MAX)
-		lexerError("64-bit integers are not yet supported");
+		lexError("64-bit integers are not yet supported");
 
 	if(isIdChar(chars[pos]))
-		lexerError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
+		lexError("Invalid number char: %d ('%c')", chars[pos], chars[pos]);
 
 	addToken(TOKEN_INT, (int) number);
 }
@@ -271,7 +271,7 @@ static inline void onNewline() {
 
 
 static char escape() {
-	// Increment pos in this function in case multi-char escapes are implemented in the future
+	// Increment bufferPos in this function in case multi-char escapes are implemented in the future
 	char input = chars[pos];
 	switch(input) {
 		case 't'  : pos++; return '\t';
@@ -282,7 +282,7 @@ static char escape() {
 		case 'b'  : pos++; return '\b';
 		case '"'  : pos++; return '\"';
 		case '\'' : pos++; return '\'';
-		default   : lexerError("Invalid escape char: %d ('%c')", input, input); return 0;
+		default   : lexError("Invalid escape char: %d ('%c')", input, input); return 0;
 	}
 }
 
@@ -325,8 +325,8 @@ static void readString() {
 		char c = chars[pos++];
 		if(c == '"') break;
 		switch(c) {
-			case 0    : lexerError("Unterminated string literal"); break;
-			case '\n' : lexerError("Newline not allowed in string literal"); break;
+			case 0    : lexError("Unterminated string literal"); break;
+			case '\n' : lexError("Newline not allowed in string literal"); break;
 			case '\\' : stringBuilder[length++] = escape(); break;
 			default   : stringBuilder[length++] = c; break;
 		}
@@ -343,7 +343,7 @@ static void readChar() {
 	if(c == '\\') c = escape();
 	addToken(TOKEN_CHAR, c);
 	if(chars[pos++] != '\'')
-		lexerError("Unterminated char literal");
+		lexError("Unterminated char literal");
 }
 
 
@@ -365,7 +365,7 @@ static void processSlash() {
 
 	while(count > 0) {
 		if(pos >= size)
-			lexerError("Unterminated multiline comment");
+			lexError("Unterminated multiline comment");
 
 		char c = chars[pos++];
 		if(c == '/' && chars[pos] == '*') {
@@ -441,11 +441,11 @@ void eyreLex(SrcFile* inputSrcFile) {
 			case '*': pos++; addSymbol(TOKEN_ASTERISK); break;
 			case ',': pos++; addSymbol(TOKEN_COMMA); break;
 
-			default: lexerError("Invalid ascii codepoint: %c", chars[pos]);
+			default: lexError("Invalid ascii codepoint: %c", chars[pos]);
 		}
 	}
 
-	// Pad end with EOF tokens
+	// Pad bufferEnd with EOF tokens
 	for(int i = 0; i < 4; i++)
 		setTerminator();
 }
@@ -463,7 +463,28 @@ void eyrePrintTokens() {
 			printf("INT   %u\n", value);
 		} else if(type == TOKEN_ID) {
 			StringIntern* intern = eyreGetString(value);
-			printf("ID    %.*s, (id=%d, hash=%d)\n", intern->length, intern->data, value, intern->hash);
+			printf("ID    %.*s, (id=%d, hash=%d", intern->length, intern->data, value, intern->hash);
+			EyreRegister reg = eyreInternToRegister(value);
+			if(reg != -1) {
+				printf(", type=REGISTER)\n");
+				continue;
+			}
+			EyreKeyword keyword = eyreInternToKeyword(value);
+			if(keyword != -1) {
+				printf(", type=KEYWORD)\n");
+				continue;
+			}
+			EyreMnemonic mnemonic = eyreInternToMnemonic(value);
+			if(mnemonic != -1) {
+				printf(", type=MNEMONIC)\n");
+				continue;
+			}
+			EyreWidth width = eyreInternToWidth(value);
+			if(width != -1) {
+				printf(", type=WIDTH)\n");
+				continue;
+			}
+			printf(")\n");
 		} else if(type == TOKEN_CHAR) {
 			char* escaped = reverseEscape((char) value);
 			if(escaped != NULL)

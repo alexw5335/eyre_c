@@ -8,9 +8,9 @@
 void eyreError_(char* format, const char* file, int line, ...) {
 	va_list args;
 	va_start(args, line);
-	fprintf(stderr, "Error at %s:%d: ", file, line);
-	vfprintf(stderr, format, args);
-	fprintf(stderr, "\n");
+	fprintf(stdout, "Error at %s:%d: ", file, line);
+	vfprintf(stdout, format, args);
+	fprintf(stdout, "\n");
 	exit(1);
 }
 

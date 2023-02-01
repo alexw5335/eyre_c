@@ -1,0 +1,16 @@
+pop ax
+pop cx
+pop dx
+pop bx
+pop sp
+pop bp
+pop si
+pop di
+pop r8w
+pop r9w
+pop r10w
+pop r11w
+pop r12w
+pop r13w
+pop r14w
+pop r15w
