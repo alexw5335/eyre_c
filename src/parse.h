@@ -45,8 +45,8 @@ typedef struct {
 
 
 typedef struct {
-	char type;
-	char op;
+	char  type;
+	char  op;
 	void* left;
 	void* right;
 } BinaryNode;
@@ -146,6 +146,16 @@ typedef struct {
 	void** args;
 	void*  invoker;
 } InvokeNode;
+
+
+
+typedef struct {
+	char     type;
+	char     op;
+	AstNode* positive;
+	AstNode* negative;
+	AstNode* scalar;
+} RelNode;
 
 
 

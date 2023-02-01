@@ -41,6 +41,7 @@ typedef enum {
 	NODE_LABEL,
 	NODE_DOT,
 	NODE_INVOKE,
+	NODE_REL,
 	NODE_COUNT
 } EyreNodeType;
 
@@ -156,6 +157,7 @@ typedef enum {
 	KEYWORD_PROC,
 	KEYWORD_ENUM,
 	KEYWORD_BITMASK,
+	KEYWORD_REL,
 	KEYWORD_COUNT,
 } EyreKeyword;
 

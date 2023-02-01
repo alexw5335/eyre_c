@@ -184,18 +184,62 @@ static char getBinaryOp(char tokenType) {
 
 
 
+static void* parseRegAtom(int reg) {
+	RegNode* node = createNode(sizeof(RegNode), NODE_REG);
+	node->width = reg >> 4;
+	node->value = reg & 15;
+	return node;
+}
+
+
+
+static void* parseRelAtom() {
+	expectToken(TOKEN_LPAREN);
+	BinaryNode* binary = parseExpression(0);
+	RelNode* node = createNode(sizeof(RelNode), NODE_REL);
+
+	if(binary->type != NODE_BINARY)
+		parseError("Invalid rel");
+
+	if(binary->op == BINARY_DIV || binary->op == BINARY_MUL) {
+		node->op = binary->op;
+		node->scalar = binary->right;
+		binary = (BinaryNode*) binary->left;
+
+		if(binary->type != NODE_BINARY)
+			parseError("Invalid rel");
+
+		if(binary->op != BINARY_SUB)
+			parseError("Invalid rel");
+	}
+
+	if(binary->op != BINARY_SUB)
+		parseError("Invalid rel");
+
+	node->positive = binary->left;
+	node->negative = binary->right;
+
+	expectToken(TOKEN_RPAREN);
+	return node;
+}
+
+
+
 static void* parseAtom() {
 	char type = tokenTypes[pos];
 	int token = (int) tokens[pos++];
 
 	if(type == TOKEN_ID) {
 		int reg = eyreInternToRegister(token);
+		if(reg >= 0) return parseRegAtom(reg);
 
-		if(reg >= 0) {
-			RegNode* node = createNode(sizeof(RegNode), NODE_REG);
-			node->width = reg >> 4;
-			node->value = reg & 15;
-			return node;
+		int keyword = eyreInternToKeyword(token);
+		if(keyword >= 0) {
+			if(keyword == KEYWORD_REL) {
+				return parseRelAtom();
+			} else {
+				parseError("Unexpected keyword: %s", eyreKeywordNames[keyword]);
+			}
 		}
 
 		SymNode* node = createNode(sizeof(SymNode), NODE_SYM);
@@ -603,7 +647,22 @@ void eyrePrintNode(void* node) {
 		printf(")");
 	} else if(type == NODE_SCOPE_END) {
 		printf("scope bufferEnd\n");
-	} else {
+	} else if(type == NODE_REL) {
+		RelNode* n = node;
+		printf("rel(");
+		if(n->scalar != NULL) printf("(");
+		eyrePrintNode(n->positive);
+		printf(" - ");
+		eyrePrintNode(n->negative);
+		if(n->scalar != NULL) {
+			printf(")");
+			if(n->op == BINARY_MUL) printf(" * "); else printf(" / ");
+			eyrePrintNode(n->scalar);
+		}
+		printf(")");
+	}
+
+	else {
 		eyreError("Invalid node for printing: %d (%s)", type, eyreNodeNames[type]);
 	}
 }

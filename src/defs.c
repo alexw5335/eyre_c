@@ -4,7 +4,7 @@ char* eyreNodeNames[NODE_COUNT] = {
 	"REG", "INT", "SYM", "BINARY",
 	"UNARY", "MEM", "IMM", "INS",
 	"STRUCT", "SCOPE_END", "NAMESPACE", "ENUM",
-	"LABEL", "DOT", "INVOKE"
+	"LABEL", "DOT", "INVOKE", "REL",
 };
 
 char* eyreUnaryOpSymbols[UNARY_COUNT] = {
@@ -36,7 +36,7 @@ char* eyreQWordRegNames[16] = {
 };
 char* eyreKeywordNames[KEYWORD_COUNT] = {
 	"const", "struct", "namespace", "proc",
-	"enum", "bitmask",
+	"enum", "bitmask", "rel",
 };
 char* eyreWidthNames[WIDTH_COUNT] = {
 	"byte", "word", "dword", "qword"

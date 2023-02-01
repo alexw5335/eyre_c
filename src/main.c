@@ -19,10 +19,10 @@ void test() {
 	printNewline();
 	eyrePrintSymbols();
 	printNewline();
-	eyreResolve(&file);
-	eyreAssemble(&file);
-	eyreWriteFile(eyreGetLocalFile("test.obj"), eyreGetAssemblerBufferSize(), eyreGetAssemblerBuffer());
-	eyreRunCommandArgs(3, "ndisasm", "-b64", eyreGetLocalFile("test.obj"));
+	//eyreResolve(&file);
+	//eyreAssemble(&file);
+	//eyreWriteFile(eyreGetLocalFile("test.obj"), eyreGetAssemblerBufferSize(), eyreGetAssemblerBuffer());
+	//eyreRunCommandArgs(3, "ndisasm", "-b64", eyreGetLocalFile("test.obj"));
 }
 
 
