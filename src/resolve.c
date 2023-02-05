@@ -101,7 +101,9 @@ static void resolveSymbols(void* n) {
 		ImmNode* node = n;
 		resolveSymbols(node->value);
 	} else if(type == NODE_DOT) {
-		resolveDot(n);
+		DotNode* node = n;
+		resolveDot(node);
+		*(&n) = node->right;
 	}
 }
 

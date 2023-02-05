@@ -36,7 +36,7 @@ char* eyreQWordRegNames[16] = {
 };
 char* eyreKeywordNames[KEYWORD_COUNT] = {
 	"const", "struct", "namespace", "proc",
-	"enum", "bitmask", "rel",
+	"enum", "bitmask", "rel", "dllimport"
 };
 char* eyreWidthNames[WIDTH_COUNT] = {
 	"byte", "word", "dword", "qword"

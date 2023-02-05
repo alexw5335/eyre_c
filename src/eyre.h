@@ -16,6 +16,31 @@
 
 void eyreAssemble(SrcFile* srcFile);
 
+/*typedef struct {
+	int    size;
+	int    capacity;
+	void** array;
+} PointerList;
+
+
+
+void checkPointerListCapacity(PointerList* list) {
+	if(list->array == NULL) {
+		if(list->capacity == 0) list->capacity = 16;
+		list->array = malloc(list->capacity);
+	} else if(list->size >= list->capacity) {
+		list->capacity = list->size << 2;
+		list->array = realloc(list->array, list->capacity);
+	}
+}
+
+
+
+void pointerListAdd(PointerList* list, void* pointer) {
+	checkPointerListCapacity(list);
+	list->array[list->size++] = pointer;
+}*/
+
 
 
 // Util
@@ -39,6 +64,10 @@ void eyreRunCommand(char* command);
 void eyreRunCommandArgs(int num, ...);
 
 void eyreWriteFile(char* path, int dataSize, void* data);
+
+void eyreToLowercase(char* string, int length);
+
+void eyreToUppercase(char* string, int length);
 
 
 

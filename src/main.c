@@ -17,8 +17,8 @@ void test() {
 	eyreParse(&file);
 	eyrePrintNodes();
 	printNewline();
-	eyrePrintSymbols();
-	printNewline();
+	//eyrePrintSymbols();
+	//printNewline();
 	//eyreResolve(&file);
 	//eyreAssemble(&file);
 	//eyreWriteFile(eyreGetLocalFile("test.obj"), eyreGetAssemblerBufferSize(), eyreGetAssemblerBuffer());

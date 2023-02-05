@@ -158,6 +158,7 @@ typedef enum {
 	KEYWORD_ENUM,
 	KEYWORD_BITMASK,
 	KEYWORD_REL,
+	KEYWORD_DLLIMPORT,
 	KEYWORD_COUNT,
 } EyreKeyword;
 
@@ -387,6 +388,14 @@ typedef struct {
 	int length;
 	int* data;
 } ScopeIntern;
+
+
+
+typedef struct {
+	int   pos;
+	char  width;
+	void* node;
+} Relocation;
 
 
 

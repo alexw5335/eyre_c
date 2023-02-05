@@ -245,6 +245,9 @@ void eyreAllocPersistentContiguous(void** start, int size) {
 
 
 void* eyreAllocPersistent(int size) {
+	if(size > persistentSize)
+		eyreError("Persistent allocation is too large: %s", size);
+
 	persistentCurrent = (void*) ((u64) persistentCurrent + 7 & -8);
 
 	if(persistentCurrent + size > persistentEnd)
@@ -292,4 +295,22 @@ void* eyreBufferAlloc(Buffer* buffer, int size) {
 	void* pointer = buffer->current;
 	buffer->current += size;
 	return pointer;
+}
+
+
+
+void eyreToLowercase(char* string, int length) {
+	for(int i = 0; i < length; i++)
+		switch(string[i])
+			case 'A'...'Z':
+				string[i] += 'a' - 'A';
+}
+
+
+
+void eyreToUppercase(char* string, int length) {
+	for(int i = 0; i < length; i++)
+		switch(string[i])
+			case 'a'...'z':
+				string[i] += 'A' - 'a';
 }

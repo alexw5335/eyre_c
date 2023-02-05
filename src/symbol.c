@@ -6,9 +6,9 @@
 
 void* eyreAddSymbol(char type, int scope, int name, int size) {
 	SymBase* symbol = eyreAllocPersistent(size);
-	symbol->type = type;
-	symbol->scope = scope;
-	symbol->name = name;
+	symbol->type    = type;
+	symbol->scope   = scope;
+	symbol->name    = name;
 	eyreInternSymbol(symbol);
 	return symbol;
 }

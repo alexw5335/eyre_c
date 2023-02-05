@@ -29,11 +29,6 @@ static EyreGroup* group;
 
 
 
-typedef struct {
-	
-} Relocation;
-
-
 
 #define assemblerErrorOffset(format, offset, ...) assemblerError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
 
@@ -85,6 +80,10 @@ static void writeInt(int value) {
 
 
 
+int hasImmReloc = FALSE;
+
+
+
 static int resolveImmRec(void* n) {
 	char type = *(char*) n;
 
@@ -93,8 +92,50 @@ static int resolveImmRec(void* n) {
 		return node->value;
 	}
 
+	if(type == NODE_UNARY) {
+		UnaryNode* node = n;
+		return eyreCalculateUnaryInt(
+			node->op,
+			resolveImmRec(node->value)
+		);
+	}
+
+	if(type == NODE_BINARY) {
+		BinaryNode* node = n;
+		return eyreCalculateBinaryInt(
+			node->op,
+			resolveImmRec(node->left),
+			resolveImmRec(node->right)
+		);
+	}
+
+	if(type == NODE_SYM) {
+		SymNode* node = n;
+		SymBase* symbol = node->symbol;
+
+		if(symbol->flags & SYM_FLAGS_POS) {
+			hasImmReloc = TRUE;
+		} else {
+			assemblerError("Invalid symbol");
+		}
+	}
+
+	assemblerError("Invalid node");
+
 	return 0;
 }
+
+
+
+static int resolveImm(void* n) {
+	char type = *(char*) n;
+	if(type == NODE_IMM) n = ((ImmNode*)n)->value;
+	hasImmReloc = FALSE;
+	int value = resolveImmRec(n);
+	if(hasImmReloc) return 0;
+	return value;
+}
+
 
 
 

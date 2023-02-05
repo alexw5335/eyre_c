@@ -165,6 +165,10 @@ void eyrePrintNode(void* node);
 
 void eyrePrintNodes();
 
+int eyreCalculateUnaryInt(EyreUnaryOp op, int value);
+
+int eyreCalculateBinaryInt(EyreBinaryOp op, int left, int right);
+
 
 
 #endif

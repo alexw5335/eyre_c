@@ -12,30 +12,28 @@
 
 
 
+static SrcFile* srcFile;
 static int pos = 0;
 
 #define nodeCapacity 8192
-
 static void* nodes[nodeCapacity];
-
 static int nodeCount;
-
 static short nodeLines[nodeCapacity];
-
 static char nodeData[16384];
-
 static void* nodeDataEnd = nodeData + 16384;
-
 static void* nodeDataPos = nodeData;
 
-static SrcFile* srcFile;
+
 
 #define scopesCapacity 32
-
 static int scopeInterns[scopesCapacity];
 static int scopesSize = 0;
 static int currentScope = 0;
 static int currentNamespace = 0; // Only for single-line namespaces
+
+#define dllImportCapacity 64
+static DllImport dllImports[dllImportCapacity];
+static int dllImportCount = 0;
 
 
 
@@ -43,11 +41,11 @@ static int currentNamespace = 0; // Only for single-line namespaces
 
 
 
-#define parseErrorOffset(format, offset, ...) parserError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
+#define parserErrorOffset(format, offset, ...) parserError_(format, offset, __FILE__, __LINE__, ##__VA_ARGS__)
 
-#define parseError(format, ...) parseError_(format, 1, __FILE__, __LINE__, ##__VA_ARGS__)
+#define parserError(format, ...) parserError_(format, 1, __FILE__, __LINE__, ##__VA_ARGS__)
 
-static void parseError_(char* format, int offset, char* file, int line, ...) {
+static void parserError_(char* format, int offset, char* file, int line, ...) {
 	fprintf(stdout, "Parser error at %s:%d: ", srcFile->path, tokenLines[pos - offset]);
 	va_list args;
 	va_start(args, line);
@@ -58,13 +56,40 @@ static void parseError_(char* format, int offset, char* file, int line, ...) {
 
 
 
+// Buffer
+
+
+
+#define listBuilderCapacity 1024
+static void* listBuilderData[1024];
+static int listBuilderSize = 0;
+
+
+
+static void* listBuilderBuild() {
+	void* data = eyreAllocPersistent(listBuilderSize * sizeof(void*));
+	memcpy(data, listBuilderData, listBuilderSize);
+	listBuilderSize = 0;
+	return data;
+}
+
+
+
+static void listBuilderAdd(void* pointer) {
+	if(listBuilderSize >= listBuilderCapacity)
+		parserError("Too many list elements: %d", listBuilderSize);
+	listBuilderData[listBuilderSize++] = pointer;
+}
+
+
+
 // Node functions
 
 
 
 static inline void addNode(void* node) {
 	if(nodeCount >= nodeCapacity)
-		parseError("Too many nodes");
+		parserError("Too many nodes");
 	if(pos >= tokenCount)
 		nodeLines[nodeCount] = tokenLines[tokenCount - 1];
 	else
@@ -79,7 +104,7 @@ static void* createNode(int size, EyreNodeType type) {
 	*node = type;
 	nodeDataPos += (size + 7) & -8; // Align by 8.
 	if(nodeDataPos >= nodeDataEnd)
-		parseError("Ran out of node data");
+		parserError("Ran out of node data");
 	return node;
 }
 
@@ -122,18 +147,18 @@ static int atTerminator() {
 
 static int parseId() {
 	if(tokenTypes[pos] != TOKEN_ID)
-		parseError("Expecting identifier");
+		parserError("Expecting identifier");
 	return tokens[pos++];
 }
 
 static void expectToken(EyreTokenType type) {
 	if(tokenTypes[pos++] != type)
-		parseError("Expecting token: %s, found: %s", eyreTokenNames[type], eyreTokenNames[pos - 1]);
+		parserError("Expecting token: %s, found: %s", eyreTokenNames[type], eyreTokenNames[pos - 1]);
 }
 
 static void expectTerminator() {
 	if(!atTerminator())
-		parseError("Expecting statement bufferEnd");
+		parserError("Expecting statement bufferEnd");
 }
 
 
@@ -184,62 +209,17 @@ static char getBinaryOp(char tokenType) {
 
 
 
-static void* parseRegAtom(int reg) {
-	RegNode* node = createNode(sizeof(RegNode), NODE_REG);
-	node->width = reg >> 4;
-	node->value = reg & 15;
-	return node;
-}
-
-
-
-static void* parseRelAtom() {
-	expectToken(TOKEN_LPAREN);
-	BinaryNode* binary = parseExpression(0);
-	RelNode* node = createNode(sizeof(RelNode), NODE_REL);
-
-	if(binary->type != NODE_BINARY)
-		parseError("Invalid rel");
-
-	if(binary->op == BINARY_DIV || binary->op == BINARY_MUL) {
-		node->op = binary->op;
-		node->scalar = binary->right;
-		binary = (BinaryNode*) binary->left;
-
-		if(binary->type != NODE_BINARY)
-			parseError("Invalid rel");
-
-		if(binary->op != BINARY_SUB)
-			parseError("Invalid rel");
-	}
-
-	if(binary->op != BINARY_SUB)
-		parseError("Invalid rel");
-
-	node->positive = binary->left;
-	node->negative = binary->right;
-
-	expectToken(TOKEN_RPAREN);
-	return node;
-}
-
-
-
 static void* parseAtom() {
 	char type = tokenTypes[pos];
 	int token = (int) tokens[pos++];
 
 	if(type == TOKEN_ID) {
 		int reg = eyreInternToRegister(token);
-		if(reg >= 0) return parseRegAtom(reg);
-
-		int keyword = eyreInternToKeyword(token);
-		if(keyword >= 0) {
-			if(keyword == KEYWORD_REL) {
-				return parseRelAtom();
-			} else {
-				parseError("Unexpected keyword: %s", eyreKeywordNames[keyword]);
-			}
+		if(reg >= 0) {
+			RegNode* node = createNode(sizeof(RegNode), NODE_REG);
+			node->width = reg >> 4;
+			node->value = reg & 15;
+			return node;
 		}
 
 		SymNode* node = createNode(sizeof(SymNode), NODE_SYM);
@@ -257,7 +237,7 @@ static void* parseAtom() {
 		if(type == TOKEN_LPAREN) {
 			void* node = parseExpression(0);
 			if(tokenTypes[pos++] != TOKEN_RPAREN)
-				parseError("Expecting ')'");
+				parserError("Expecting ')'");
 			return node;
 		}
 
@@ -270,10 +250,10 @@ static void* parseAtom() {
 		if(type == TOKEN_TILDE)
 			return createUnaryNode(UNARY_NOT, parseAtom());
 
-		parseError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
+		parserError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
 	}
 
-	parseError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
+	parserError("Invalid atom token (type = %s, token = %d)", eyreTokenNames[type], token);
 	return NULL;
 }
 
@@ -287,7 +267,7 @@ static void* parseExpression(int precedence) {
 
 		if(tokenType < TOKEN_SYM_START) {
 			if(!atTerminator()) {
-				parseError("Use a semicolon to separate expressions that are on the same line");
+				parserError("Use a semicolon to separate expressions that are on the same line");
 			} else {
 				break;
 			}
@@ -306,7 +286,7 @@ static void* parseExpression(int precedence) {
 			node->left = atom;
 			node->right = parseExpression(precedence2 + 1);
 			if(node->right->type != NODE_SYM)
-				parseError("Expected id node, found: %s", eyreNodeNames[node->right->type]);
+				parserError("Expected id node, found: %s", eyreNodeNames[node->right->type]);
 			atom = node;
 		} else if(op == BINARY_INV) {
 			InvokeNode* node = createNode(sizeof(InvokeNode), NODE_INVOKE);
@@ -348,7 +328,7 @@ static void parseScope(int scope);
 
 static int addScope(int name) {
 	if(scopesSize >= scopesCapacity)
-		parseError("Too many scopes");
+		parserError("Too many scopes");
 	int hash = 0;
 	scopeInterns[scopesSize++] = name;
 	for(int i = 0; i < scopesSize; i++)
@@ -358,12 +338,43 @@ static int addScope(int name) {
 
 
 
+static void parseDllImport() {
+	int dllName = parseId();
+	expectToken(TOKEN_LBRACE);
+
+	DllImport* import = NULL;
+
+	for(int i = 0; i < dllImportCount; i++) {
+		if(dllImports[i].dllName == dllName) {
+			import = &dllImports[i];
+			break;
+		}
+	}
+
+	if(import == NULL) {
+		if(dllImportCount >= dllImportCapacity)
+			parserError("Too many DLL imports: %d", dllImportCount);
+		import = &dllImports[dllImportCount++];
+	}
+
+	while(tokenTypes[pos] != TOKEN_RBRACE) {
+		int importName = parseId();
+		expectTerminator();
+		if(tokenTypes[pos] == TOKEN_COMMA) pos++;
+		DllImportSymbol* symbol = eyreAddSymbol(SYM_DLL_IMPORT, currentScope, importName, sizeof(DllImportSymbol));
+		symbol->importName = importName;
+		checkCapacity((void**) &import->imports, import->importCount, &import->importCapacity, sizeof(void*));
+		import->imports[import->importCount++] = symbol;
+	}
+}
+
+
+
 static void parseNamespace() {
 	int name = parseId();
-	int parentScope = currentScope;
 	int thisScope = addScope(name);
 
-	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, parentScope, name, sizeof(NamespaceSymbol));
+	NamespaceSymbol* symbol = (NamespaceSymbol*) eyreAddSymbol(SYM_NAMESPACE, currentScope, name, sizeof(NamespaceSymbol));
 	NamespaceNode* node = createNode(sizeof(NamespaceNode), NODE_NAMESPACE);
 	node->name = name;
 	node->symbol = symbol;
@@ -391,6 +402,7 @@ static void parseStruct() {}
 
 static void parseLabel(int name) {
 	LabelSymbol* symbol = eyreAddSymbol(SYM_LABEL, currentScope, name, sizeof(LabelSymbol));
+	symbol->base.flags = SYM_FLAGS_POS;
 	LabelNode* node = createNode(sizeof(LabelNode), NODE_LABEL);
 	node->symbol = symbol;
 	addNode(node);
@@ -404,7 +416,8 @@ static void parseKeyword(EyreKeyword keyword) {
 		case KEYWORD_BITMASK: parseEnum(TRUE); break;
 		case KEYWORD_STRUCT: parseStruct(); break;
 		case KEYWORD_NAMESPACE: parseNamespace(); break;
-		default: parseError("Invalid keyword: %s", eyreKeywordNames[keyword]);
+		case KEYWORD_DLLIMPORT: parseDllImport(); break;
+		default: parserError("Invalid keyword: %s", eyreKeywordNames[keyword]);
 	}
 }
 
@@ -431,7 +444,7 @@ static void* parseOperand() {
 		pos++;
 		void* value = parseExpression(0);
 		if(tokenTypes[pos++] != TOKEN_RBRACKET)
-			parseError("Expecting ']'");
+			parserError("Expecting ']'");
 		MemNode* node = createNode(sizeof(MemNode), NODE_MEM);
 		node->width = width;
 		node->value = value;
@@ -474,7 +487,7 @@ static InsNode* parseInstruction(EyreMnemonic mnemonic) {
 	pos++;
 
 	node->op4 = parseOperand();
-	if(!atTerminator()) parseError("Expecting statement bufferEnd");
+	if(!atTerminator()) parserError("Expecting statement bufferEnd");
 	return node;
 }
 
@@ -525,10 +538,10 @@ static void parseScope(int scope) {
 				continue;
 			}
 
-			parseError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
+			parserError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
 		}
 
-		parseError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
+		parserError("Invalid token (type = %s, token = %d)", eyreTokenNames[type], token);
 
 	}
 
@@ -593,7 +606,7 @@ void eyrePrintNode(void* node) {
 		} else if(n->width == WIDTH_QWORD) {
 			printf("%s", eyreQWordRegNames[n->value]);
 		} else {
-			parseError("Invalid register");
+			parserError("Invalid register");
 		}
 	} else if(type == NODE_MEM) {
 		MemNode* n = node;
@@ -650,16 +663,11 @@ void eyrePrintNode(void* node) {
 	} else if(type == NODE_REL) {
 		RelNode* n = node;
 		printf("rel(");
-		if(n->scalar != NULL) printf("(");
 		eyrePrintNode(n->positive);
-		printf(" - ");
+		printf(", ");
 		eyrePrintNode(n->negative);
-		if(n->scalar != NULL) {
-			printf(")");
-			if(n->op == BINARY_MUL) printf(" * "); else printf(" / ");
-			eyrePrintNode(n->scalar);
-		}
-		printf(")");
+		printf(", ");
+		eyrePrintNode(n->scalar);
 	}
 
 	else {
@@ -673,5 +681,35 @@ void eyrePrintNodes() {
 	for(int i = 0; i < nodeCount; i++) {
 		printf("Line %d:  ", nodeLines[i]);
 		eyrePrintNode(nodes[i]);
+	}
+}
+
+
+
+int eyreCalculateUnaryInt(EyreUnaryOp op, int value) {
+	switch(op) {
+		case UNARY_POS: return value;
+		case UNARY_NEG: return -value;
+		case UNARY_NOT: return ~value;
+		default: return value;
+	}
+}
+
+
+
+int eyreCalculateBinaryInt(EyreBinaryOp op, int left, int right) {
+	switch(op) {
+		case BINARY_ADD: return left + right;
+		case BINARY_SUB: return left - right;
+		case BINARY_MUL: return left * right;
+		case BINARY_DIV: return left / right;
+		case BINARY_AND: return left & right;
+		case BINARY_OR:  return left | right;
+		case BINARY_XOR: return left ^ right;
+		case BINARY_SHL: return left << right;
+		case BINARY_SHR: return left >> right;
+		case BINARY_DOT: return 0;
+		case BINARY_INV: return 0;
+		default: return 0;
 	}
 }

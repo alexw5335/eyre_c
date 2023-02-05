@@ -1,0 +1,4 @@
+#ifndef EYRE_LINK_INCLUDE
+#define EYRE_LINK_INCLUDE
+
+#endif

@@ -1,1 +1,4 @@
-mov rax, rel(L1 - L2 * 3)
+dllimport kernel32 {
+	ExitProcess
+	WriteFileA
+}
