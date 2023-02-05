@@ -713,3 +713,9 @@ int eyreCalculateBinaryInt(EyreBinaryOp op, int left, int right) {
 		default: return 0;
 	}
 }
+
+
+
+DllImport* eyreGetDllImports() {
+	return dllImports;
+}

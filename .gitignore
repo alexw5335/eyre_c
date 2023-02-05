@@ -1,4 +1,7 @@
 cmake-build-debug
 cmake-build-release
 .idea
-/temp.txt
+/temp
+/prev
+*.exe
+*.obj

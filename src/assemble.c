@@ -52,8 +52,6 @@ static inline void checkBuffer() {
 		assemblerError("Capacity reached");
 }
 
-
-
 static void write8(char value) {
 	*(char*) bufferPos = value;
 	bufferPos++;

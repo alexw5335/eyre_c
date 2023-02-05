@@ -25,7 +25,7 @@ add_executable(
         src/symbol.h
         src/resolve.c
         src/resolve.h
-        src/assemble.c src/assemble.h src/link.c src/link.h src/internal.c src/internal.h)
+        src/assemble.c src/assemble.h src/link.c src/link.h)
 
 target_compile_definitions(
         eyre

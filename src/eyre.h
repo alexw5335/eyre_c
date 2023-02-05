@@ -16,6 +16,12 @@
 
 void eyreAssemble(SrcFile* srcFile);
 
+void eyreLink();
+
+void* eyreGetLinkBuffer();
+
+int eyreGetLinkBufferSize();
+
 /*typedef struct {
 	int    size;
 	int    capacity;

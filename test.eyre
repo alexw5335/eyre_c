@@ -1,4 +1,1 @@
-dllimport kernel32 {
-	ExitProcess
-	WriteFileA
-}
+neg rax

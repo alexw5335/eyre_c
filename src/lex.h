@@ -63,6 +63,7 @@ typedef enum EyreTokenType {
 } EyreTokenType;
 
 
+
 extern char* eyreTokenSymbols[TOKEN_COUNT];
 
 extern char* eyreTokenNames[TOKEN_COUNT];

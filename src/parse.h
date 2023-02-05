@@ -169,6 +169,8 @@ int eyreCalculateUnaryInt(EyreUnaryOp op, int value);
 
 int eyreCalculateBinaryInt(EyreBinaryOp op, int left, int right);
 
+DllImport* eyreGetDllImports();
+
 
 
 #endif
