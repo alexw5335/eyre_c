@@ -3,12 +3,31 @@
 
 
 
-void eyreParseEncodings(char* path);
+#include "enums.h"
 
-void eyreGenGroups();
 
-void eyreGenMnemonics();
 
+typedef struct {
+	char* mnemonic;
+	int opcode;
+	int extension;
+	EyreOperands operands;
+	int widths;
+} EyreGenEncoding;
+
+
+
+typedef struct {
+	char mnemonic[16];
+	int operandsBits;
+	int specifierBits;
+	int encodingCount;
+	EyreGenEncoding* encodings[32];
+} EyreGenGroup;
+
+
+
+void eyreGen(char* path);
 
 
 #endif

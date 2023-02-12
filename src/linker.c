@@ -1,12 +1,22 @@
 #include <string.h>
 #include "internal.h"
 #include "buffer.h"
+#include "nodes.h"
+#include "enums.h"
+#include "symbols.h"
 
 
 
 
 #define sectionAlignment 0x1000
 #define fileAlignment 0x200
+
+
+static int currentSectionRva;
+static int currentSectionPos;
+static int linkLength;
+
+
 
 static inline int roundToSectionAlignment(int value) {
 	return (value + sectionAlignment - 1) & -sectionAlignment;
@@ -82,6 +92,77 @@ static void writeSections() {
 
 	bufferSeek(rawDataPos);
 	writeBytes(getAssemblerBuffer(), rawDataSize);
+
+	currentSectionPos = rawDataPos;
+	currentSectionRva = virtualAddress;
+}
+
+
+
+// Relocations
+
+
+
+static int resolveImmRec(void* n, int regValid) {
+	char type = *(char*) n;
+
+	if(type == NODE_INT) {
+		IntNode* node = n;
+		return node->value;
+	}
+
+	if(type == NODE_UNARY) {
+		UnaryNode* node = n;
+		return calcUnaryInt(
+			node->op,
+			resolveImmRec(node->value, regValid & (node->op == UNARY_POS))
+		);
+	}
+
+	if(type == NODE_BINARY) {
+		BinaryNode* node = n;
+		return calcBinaryInt(
+			node->op,
+			resolveImmRec(node->left, regValid & ((node->op == BINARY_ADD) | (node->op == BINARY_SUB))),
+			resolveImmRec(node->right, regValid & (node->op == BINARY_ADD))
+		);
+	}
+
+	if(type == NODE_SYM) {
+		SymNode* node = n;
+		SymBase* symBase = node->symbol;
+
+		if(symBase->flags & SYM_FLAGS_POS) {
+			return ((PosSymbol*) symBase)->pos;
+		} else {
+			error("Invalid symbol");
+		}
+	}
+
+	error("Invalid node");
+
+	return 0;
+}
+
+
+
+static int resolveImm(void* n) {
+	if(nodeType(n) == NODE_IMM)
+		n = ((ImmNode*)n)->value;
+	return resolveImmRec(n, 1);
+}
+
+
+
+static void writeRelocations() {
+	for(int i = 0; i < relocationCount; i++) {
+		Relocation relocation = relocations[i];
+		if(relocation.offset != -2) error("Invalid relocation");
+		int value = resolveImm(relocation.node);
+		void* prev = bufferSeek(currentSectionPos + relocation.pos);
+		writeWidth(relocation.width, value);
+		bufferSetPos(prev);
+	}
 }
 
 
@@ -89,6 +170,8 @@ static void writeSections() {
 void eyreLink() {
 	writeHeaders();
 	writeSections();
+	linkLength = bufferPos - buffer;
+	writeRelocations();
 }
 
 

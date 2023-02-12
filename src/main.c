@@ -3,20 +3,13 @@
 #include "intern.h"
 
 
-static void gen() {
-	eyreParseEncodings("encodings.txt");
-	//eyreGenGroups();
-	eyreGenMnemonics();
-}
-
-
 
 static void test() {
 	eyreInitInterns();
 	SrcFile srcFile = { .path = getLocalFile("test.eyre") };
 	eyreLex(&srcFile);
-	eyrePrintTokens(&srcFile);
-	printNewline();
+	//eyrePrintTokens(&srcFile);
+	//printNewline();
 	eyreParse(&srcFile);
 	eyrePrintNodes(&srcFile);
 	eyreResolve(&srcFile);
@@ -24,12 +17,13 @@ static void test() {
 	eyreAssemble(&srcFile);
 	writeFile(getLocalFile("test.obj"), getAssemblerBufferLength(), getAssemblerBuffer());
 	runCommandArgs(3, "ndisasm", "-b64", getLocalFile("test.obj"));
-	//eyreLink();
-	//writeFile(getLocalFile("test.exe"), getLinkerBufferLength(), getLinkerBuffer());
+	eyreLink();
+	writeFile(getLocalFile("test.exe"), getLinkerBufferLength(), getLinkerBuffer());
 }
 
 
 
 int main() {
 	test();
+	//eyreGen(getLocalFile("encodings.txt"));
 }

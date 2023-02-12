@@ -55,9 +55,15 @@ static void write64(long long value) {
 	checkBuffer();
 }
 
-static void bufferSeek(int pos) {
+static void* bufferSeek(int pos) {
+	void* prev = bufferPos;
 	bufferPos = buffer + pos;
 	checkBuffer();
+	return prev;
+}
+
+static void bufferSetPos(void* pos) {
+	bufferPos = pos;
 }
 
 static void writeAscii64(char* ascii) {
@@ -83,6 +89,34 @@ static void writeVarLengthInt(int value) {
 	*(int*) bufferPos = value;
 	bufferPos += (7 + _bit_scan_reverse(value | 1) & -8) >> 3;
 	checkBuffer();
+}
+
+static int writeWidth(int width, s64 value) {
+	switch(width) {
+		case 0: {
+			return TRUE;
+		}
+		case 1: {
+			if(!isImm8(width)) return FALSE;
+			write8(value);
+			return TRUE;
+		}
+		case 2: {
+			if(!isImm16(width)) return FALSE;
+			write16(value);
+			return TRUE;
+		}
+		case 3: {
+			if(!isImm32(width)) return FALSE;
+			write32(value);
+			return TRUE;
+		}
+		case 4: {
+			write64(value);
+			return TRUE;
+		}
+		default: return FALSE;
+	}
 }
 
 

@@ -3,4 +3,6 @@ dllimport kernel32 {
 	ExitProcess
 }
 
-ret 5
+label:
+	push label2
+label2:

@@ -7,6 +7,8 @@
 #include <processenv.h>
 #include <processthreadsapi.h>
 #include <synchapi.h>
+#include <errhandlingapi.h>
+#include <winerror.h>
 
 
 
@@ -288,4 +290,23 @@ void writeFile(char* path, int dataSize, void* data) {
 
 	if(!CloseHandle(handle))
 		error("Failed to close handle to file \"%s\"", path);
+}
+
+
+
+// Avoid having to include windows.h
+extern int CopyFileA(char* srcPath, char* dstPath, int bFailIfExists);
+
+
+
+void copyFile(char* srcPath, char* dstPath) {
+	if(!CopyFileA(srcPath, dstPath, FALSE))
+		error("Failed to copy file (src=\"%s\", dst=\"%s\")", srcPath, dstPath);
+}
+
+
+
+void createDirectory(char* path) {
+	if(!CreateDirectoryA(path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS)
+		error("Failed to create directory \"%s\"", path);
 }

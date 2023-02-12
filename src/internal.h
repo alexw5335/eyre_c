@@ -200,6 +200,10 @@ char* getLocalFile(char* fileName);
 
 void writeFile(char* path, int dataSize, void* data);
 
+void copyFile(char* srcPath, char* dstPath);
+
+void createDirectory(char* path);
+
 
 
 // Compilation

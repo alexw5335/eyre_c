@@ -1,6 +1,4 @@
 #include "gen.h"
-#include "encodings.h"
-#include "enums.h"
 #include "internal.h"
 
 
@@ -9,9 +7,11 @@
 
 
 
+static char* path;
 static char* chars;
 static int size;
-static int pos;
+static int pos = 0;
+static int lineNumber = 1;
 
 #define ENCODINGS_CAPACITY 1024
 static int encodingCount;
@@ -20,6 +20,23 @@ static EyreGenEncoding encodings[ENCODINGS_CAPACITY];
 #define GROUPS_CAPACITY 512
 static int groupCount;
 static EyreGenGroup groups[GROUPS_CAPACITY];
+
+
+
+// Errors
+
+
+
+static void encodingErrorAt(char* format, char* file, int line, ...) {
+	fprintf(stdout, "Encoding error at %s:%d: ", path, lineNumber);
+	va_list args;
+	va_start(args, line);
+	vfprintf(stdout, format, args);
+	fprintf(stdout, "\n");
+	errorAt("Encoding error", file, line);
+}
+
+#define encodingError(format, ...) encodingErrorAt(format, __FILE__, __LINE__, ##__VA_ARGS__)
 
 
 
@@ -34,7 +51,7 @@ static void skipSpaces() {
 
 
 static void skipLine() {
-	while(chars[pos++] != '\n') { }
+	while(chars[pos] != '\n') pos++;
 }
 
 
@@ -62,7 +79,7 @@ static int parseHex(unsigned char c) {
 		return c - 'a' + 10;
 	if(c >= 'A' && c <= 'F')
 		return c - 'A' + 10;
-	error("Invalid hex: %d", c);
+	encodingError("Invalid hex: %d", c);
 	return 0;
 }
 
@@ -108,7 +125,7 @@ static char* parseString(int length) {
 
 static int addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOperands operands, int widths) {
 	if(encodingCount >= ENCODINGS_CAPACITY)
-		error("Too many encodings");
+		encodingError("Too many encodings");
 
 	EyreGenEncoding* encoding  = &encodings[encodingCount++];
 	encoding->mnemonic  = group->mnemonic;
@@ -118,7 +135,7 @@ static int addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOpera
 	encoding->widths    = widths;
 
 	if(group->encodingCount >= 32)
-		error("Too many encodings for mnemonic %s", group->mnemonic);
+		encodingError("Too many encodings for mnemonic %s", group->mnemonic);
 
 	group->encodings[group->encodingCount++] = encoding;
 	group->operandsBits |= (1 << encoding->operands);
@@ -135,7 +152,7 @@ static EyreGenGroup* addGroup(char* string, int length) {
 			return &groups[i];
 
 	if(groupCount >= GROUPS_CAPACITY)
-		error("Too many groups");
+		encodingError("Too many groups");
 
 	EyreGenGroup* group = &groups[groupCount++];
 	memcpy(group->mnemonic, string, length);
@@ -183,7 +200,7 @@ static int parseExtension() {
 	pos++;
 	int extension = chars[pos++] - '0';
 	if(extension < 0 || extension > 9)
-		error("Invalid extension: %d", extension);
+		encodingError("Invalid extension: %d", extension);
 	return extension;
 }
 
@@ -202,13 +219,30 @@ static int parseWidths() {
 	if(chars[pos] != '0' && chars[pos] != '1') return 0;
 	int widths = 0;
 	for(int i = 0; i < 4; i++) {
-		char c = chars[pos++];
+		char c = chars[pos];
 		if(c == '1')
 			widths |= (1 << i);
 		else if(c != '0')
-			error("Invalid widths char: %d", c);
+			encodingError("Invalid widths char: %d", c);
+		pos++;
 	}
 	return widths;
+}
+
+
+
+static int parseCustom() {
+	if(atNewline()) return 0;
+
+	if(memcmp(&chars[pos], "CUSTOM1", 7) == 0) {
+		pos += 7;
+		return OPERANDS_CUSTOM1;
+	} else if(memcmp(&chars[pos], "CUSTOM2", 7) == 0) {
+		pos += 7;
+		return OPERANDS_CUSTOM2;
+	} else {
+		return 0;
+	}
 }
 
 
@@ -217,8 +251,9 @@ static int parseWidths() {
 
 
 
-void eyreParseEncodings(char* path) {
-	readFile(getLocalFile(path));
+static void parseEncodings(char* inputPath) {
+	path = inputPath;
+	readFile(path);
 
 	chars = getReadFileData();
 	size = getReadFileLength();
@@ -228,7 +263,13 @@ void eyreParseEncodings(char* path) {
 
 		if(c == ';') break;
 
-		if(isWhitespace(c)) {
+		if(c == '\n') {
+			lineNumber++;
+			pos++;
+			continue;
+		}
+
+		if(c == ' ' || c == '\t' || c == '\r') {
 			pos++;
 			continue;
 		}
@@ -252,7 +293,11 @@ void eyreParseEncodings(char* path) {
 		skipSpaces();
 
 		int widths = parseWidths();
+		skipSpaces();
+		int custom = parseCustom();
 		skipLine();
+
+		if(custom) operands = custom;
 
 		if(compound >= 0) {
 			EyreOperands* compoundOperands = eyreCompoundOperandsMap[compound];
@@ -265,67 +310,140 @@ void eyreParseEncodings(char* path) {
 		} else if(operandsLength == 0) {
 			addEncoding(group, opcode, extension, OPERANDS_NONE, widths);
 		} else {
-			error("Invalid operands: %.*s", operandsLength, operandsString);
+			encodingError("Invalid operands: %.*s", operandsLength, operandsString);
+		}
+	}
+
+	for(int i = 0; i < groupCount; i++) {
+		EyreGenEncoding** list = groups[i].encodings;
+		int count = groups[i].encodingCount;
+
+		while(1) {
+			int comparisons = 0;
+
+			for(int j = 0; j < count - 1; j++) {
+				EyreGenEncoding* a = list[j];
+				EyreGenEncoding* b = list[j + 1];
+				if(b->operands < a->operands) {
+					if(b->operands == OPERANDS_CUSTOM2) printInt(1);
+					list[j] = b;
+					list[j + 1] = a;
+					comparisons++;
+				}
+			}
+
+			if(comparisons == 0) break;
 		}
 	}
 }
 
 
 
-void eyreGenGroups() {
-	printf("#include \"eyre_defs.h\"\n\n");
+// Generation
+
+
+
+static char buffer[100000];
+
+static int bufferSize = 0;
+
+
+void print(char* format, ...) {
+	va_list list;
+	va_start(list, format);
+	int count = vsprintf(buffer + bufferSize, format, list);
+	bufferSize += count;
+}
+
+
+
+static void genGroups() {
+	bufferSize = 0;
+	
+	print("#include \"encodings.h\"\n\n");
 
 	for(int i = 0; i < groupCount; i++) {
 		EyreGenGroup g = groups[i];
 
-		printf("static EyreEncoding EYRE_ENCODINGS_%s[] = {\n", g.mnemonic);
+		print("static EyreEncoding EYRE_ENCODINGS_%s[] = {\n", g.mnemonic);
 		for(int j = 0; j < g.encodingCount; j++) {
 			EyreGenEncoding* e = g.encodings[j];
-			printf("\t{ %d, %d, %d, %d },\n", e->opcode, e->extension, 0, e->widths);
+			print("\t{ %d, %d, %d, %d },\n", e->opcode, e->extension, 0, e->widths);
 		}
-		printf("};\n\n");
+		print("};\n\n");
 	}
 
-	printf("static EyreGroup eyreEncodings[] = {\n");
+	print("static EyreGroup eyreEncodings[] = {\n");
 	for(int i = 0; i < groupCount; i++) {
 		EyreGenGroup g = groups[i];
-		printf("\t{ %d, %d, EYRE_ENCODINGS_%s },\n", g.operandsBits, g.specifierBits, g.mnemonic);
+		print("\t{ %d, %d, EYRE_ENCODINGS_%s },\n", g.operandsBits, g.specifierBits, g.mnemonic);
 	}
-	printf("};\n");
+	print("};\n");
 
-	printf("\nEyreGroup eyreGetEncodings(int mnemonic) { return eyreEncodings[mnemonic]; }\n\n\n");
+	print("\nEyreGroup* eyreGetEncodings(int mnemonic) { return &eyreEncodings[mnemonic]; }\n\n\n");
+
+	copyFile(getLocalFile("src/encodings.c"), getLocalFile("prev/encodings.c"));
+	writeFile(getLocalFile("src/encodings.c"), bufferSize, buffer);
 }
 
 
 
-void eyreGenMnemonics() {
-	printf("typedef enum EyreMnemonic {\n");
+static void genMnemonicsHeader() {
+	bufferSize = 0;
+	print("#ifndef INCLUDE_MNEMONICS\n");
+	print("#define INCLUDE_MNEMONICS\n\n");
+	print("typedef enum EyreMnemonic {\n");
 	for(int i = 0; i < groupCount; i++) {
-		if(i % 4 == 0) printf("\t");
-		printf("MNEMONIC_%s, ", groups[i].mnemonic);
-		if(i % 4 == 3) printf("\n");
+		if(i % 4 == 0) print("\t");
+		print("MNEMONIC_%s, ", groups[i].mnemonic);
+		if(i % 4 == 3) print("\n");
 	}
-	if(groupCount % 4 != 3) printf("\n");
-	printf("\tMNEMONIC_COUNT\n");
-	printf("} EyreMnemonic;\n");
+	if(groupCount % 4 != 3) print("\n");
+	print("\tMNEMONIC_COUNT\n");
+	print("} EyreMnemonic;\n\n");
+	print("extern char* eyreMnemonicNames[MNEMONIC_COUNT];\n\n");
+	print("#endif\n");
 
-	printf("\nstatic char* eyreMnemonicNames[MNEMONIC_COUNT] = {");
+	copyFile(getLocalFile("src/mnemonics.h"), getLocalFile("prev/mnemonics.h"));
+	writeFile(getLocalFile("src/mnemonics.h"), bufferSize, buffer);
+}
+
+
+
+static void genMnemonics() {
+	bufferSize = 0;
+	print("#include \"mnemonics.h\"\n\n");
+	print("char* eyreMnemonicNames[MNEMONIC_COUNT] = {\n");
 	for(int i = 0; i < groupCount; i++) {
 		char lowercase[16];
 		for(int j = 0; j < 16; j++) {
 			char c = groups[i].mnemonic[j];
 			if(c >= 'A' && c <= 'Z') lowercase[j] = c - 'A' + 'a'; else lowercase[j] = c;
 		}
-		if(i % 4 == 0) printf("\t");
-		printf("\"%s\", ", lowercase);
-		if(i % 4 == 3) printf("\n");
+		if(i % 4 == 0) print("\t");
+		print("\"%s\", ", lowercase);
+		if(i % 4 == 3) print("\n");
 	}
-	if(groupCount % 4 != 3) printf("\n");
-	printf("};\n");
+	if(groupCount % 4 != 3) print("\n");
+	print("};\n");
+
+	copyFile(getLocalFile("src/mnemonics.c"), getLocalFile("prev/mnemonics.c"));
+	writeFile(getLocalFile("src/mnemonics.c"), bufferSize, buffer);
 }
 
 
 
+void eyreGen(char* inputPath) {
+	parseEncodings(inputPath);
+	createDirectory(getLocalFile("prev"));
+	genGroups();
+	genMnemonicsHeader();
+	genMnemonics();
+}
+
+
+
+/*
 static void printEncodings() {
 	for(int i = 0; i < encodingCount; i++) {
 		EyreGenEncoding encoding = encodings[i];
@@ -336,4 +454,4 @@ static void printEncodings() {
 			printf(" %d", encoding.widths);
 		printf("\n");
 	}
-}
+}*/

@@ -1,6 +1,7 @@
 #include "intern.h"
 #include <mem.h>
 #include "enums.h"
+#include "mnemonics.h"
 
 
 

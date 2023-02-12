@@ -5,6 +5,7 @@
 #include "encodings.h"
 #include <intrin.h>
 #include "buffer.h"
+#include "mnemonics.h"
 
 
 
@@ -489,16 +490,7 @@ static void assemble1(InsNode* node) {
 
 
 
-static void assembleInstruction(InsNode* node) {
-	group = eyreGetEncodings(node->mnemonic);
-
-	CustomEncoding customEncoding = customEncodings[node->mnemonic];
-
-	if(customEncoding != NULL) {
-		customEncoding(node);
-		return;
-	}
-
+static void assembleInstruction_(InsNode* node) {
 	if(node->op1 == NULL)
 		assemble0();
 	else if(node->op2 == NULL)
@@ -509,6 +501,21 @@ static void assembleInstruction(InsNode* node) {
 		assemblerError("3-operand instructions not yet supported");
 	else
 		assemblerError("4-operand instructions not yet supported");
+}
+
+
+
+static void assembleInstruction(InsNode* node) {
+	group = eyreGetEncodings(node->mnemonic);
+
+	CustomEncoding customEncoding = customEncodings[node->mnemonic];
+
+	if(customEncoding != NULL) {
+		customEncoding(node);
+		return;
+	}
+
+	assembleInstruction_(node);
 }
 
 
@@ -562,7 +569,7 @@ static void customEncodeJCC(InsNode* node) {
 		write8(imm);
 	} else {
 		encodeNone(OPERANDS_CUSTOM2);
-		write32(0);
+		write32(imm);
 	}
 }
 
@@ -594,7 +601,7 @@ static void customEncodeINT(InsNode* node) {
 
 static void customEncodeRET(InsNode* node) {
 	if(node->op1 == NULL) {
-		encodeNone(OPERANDS_CUSTOM1);
+		encodeNone(OPERANDS_NONE);
 		return;
 	}
 
@@ -602,7 +609,7 @@ static void customEncodeRET(InsNode* node) {
 		invalidEncoding();
 
 	int imm = resolveImm(node->op1);
-	encodeNone(OPERANDS_CUSTOM2);
+	encodeNone(OPERANDS_CUSTOM1);
 	if(hasImmReloc) addDefaultRelocation(WIDTH_WORD, node);
 	if(!isImm16(imm)) assemblerError("Invalid encoding");
 	write16(imm);
@@ -612,6 +619,28 @@ static void customEncodeRET(InsNode* node) {
 
 static void customEncodePUSH(InsNode* node) {
 	if(node->op2 != NULL) assemblerError("Invalid encoding");
+
+	if(nodeType(node->op1) != NODE_IMM) {
+		assembleInstruction_(node);
+		return;
+	}
+
+	int imm = resolveImm(node->op1);
+
+	if(hasImmReloc) {
+		write8(0x68);
+		addDefaultRelocation(WIDTH_DWORD, node->op1);
+		write32(0);
+	} else if(isImm8(imm)) {
+		write8(0x6A);
+		write8(imm);
+	} else if(isImm16(imm)) {
+		write16(0x6866);
+		write16(imm);
+	} else {
+		write8(0x68);
+		write32(imm);
+	}
 }
 
 
@@ -647,7 +676,8 @@ static CustomEncoding customEncodings[MNEMONIC_COUNT] = {
 	[MNEMONIC_JZ]   = customEncodeJCC,
 	[MNEMONIC_INT]  = customEncodeINT,
 	[MNEMONIC_RET]  = customEncodeRET,
-	[MNEMONIC_RETF] = customEncodeRET
+	[MNEMONIC_RETF] = customEncodeRET,
+	[MNEMONIC_PUSH] = customEncodePUSH,
 };
 
 

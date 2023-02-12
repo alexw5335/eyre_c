@@ -24,4 +24,7 @@ add_executable(
         src/resolve.c
         src/assembler.c
         src/linker.c
-        src/buffer.h)
+        src/buffer.h
+        src/mnemonics.c
+        src/mnemonics.h
+)
