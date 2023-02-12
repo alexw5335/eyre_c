@@ -1,1 +1,6 @@
-neg rax
+dllimport kernel32 {
+	WriteFileA
+	ExitProcess
+}
+
+ret 5
