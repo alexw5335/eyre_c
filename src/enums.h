@@ -261,6 +261,20 @@ typedef enum {
 
 
 
+typedef enum {
+	// Invalid
+	SECTION_NONE,
+	// .text, initialised | code, execute | read
+	SECTION_TEXT,
+	// .data, initialised, read | write
+	SECTION_DATA,
+	// .idata, initialised, read
+	SECTION_IDATA,
+	SECTION_COUNT,
+} EyreSection;
+
+
+
 extern char* eyreWidthNames[WIDTH_COUNT];
 
 extern char* eyreOperandsNames[OPERANDS_COUNT];

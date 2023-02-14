@@ -362,6 +362,8 @@ static void parseDllImport() {
 		if(tokenTypes[pos] == TOKEN_COMMA) pos++;
 		DllImportSymbol* symbol = eyreAddSymbol(SYM_DLL_IMPORT, currentScope, importName, sizeof(DllImportSymbol));
 		symbol->base.flags = SYM_FLAGS_POS;
+		symbol->pos = 0;
+		symbol->section = SECTION_IDATA;
 		symbol->importName = importName;
 		checkCapacity((void**) &import->imports, import->importCount, &import->importCapacity, sizeof(void*));
 		import->imports[import->importCount++] = symbol;
@@ -403,6 +405,8 @@ static void parseNamespace() {
 static void parseLabel(int name) {
 	LabelSymbol* symbol = eyreAddSymbol(SYM_LABEL, currentScope, name, sizeof(LabelSymbol));
 	symbol->base.flags = SYM_FLAGS_POS;
+	symbol->pos = 0;
+	symbol->section = SECTION_TEXT;
 	LabelNode* node = createNode(sizeof(LabelNode), NODE_LABEL);
 	node->symbol = symbol;
 	addNode(node);

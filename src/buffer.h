@@ -58,6 +58,19 @@ static int bufferSeek(int pos) {
 	return prev;
 }
 
+static void zeroTo(int pos) {
+	int length = pos - bufferPos;
+	checkBufferExtra(length);
+	memset(&buffer[bufferPos], 0, length);
+	bufferPos = pos;
+}
+
+static void writeZero(int length) {
+	checkBufferExtra(length);
+	memset(&buffer[bufferPos], 0, length);
+	bufferPos += length;
+}
+
 static void writeAscii64(char* ascii) {
 	long long value = 0;
 	int length = strlen(ascii);

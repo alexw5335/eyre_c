@@ -14,7 +14,8 @@ typedef struct {
 
 typedef struct {
 	SymBase base;
-	int pos;
+	int     pos;
+	int     section;
 } PosSymbol;
 
 
@@ -29,7 +30,8 @@ typedef struct {
 
 typedef struct {
 	SymBase base;
-	int pos;
+	int     pos;
+	char    section;
 } LabelSymbol;
 
 
@@ -44,6 +46,7 @@ typedef struct {
 typedef struct {
 	SymBase  base;
 	int      pos;
+	int      section;
 	int      importName;
 } DllImportSymbol;
 

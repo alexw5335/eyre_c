@@ -11,11 +11,23 @@
 #define sectionAlignment 0x1000
 #define fileAlignment 0x200
 
+const int numSectionsPos = 70;
+const int entryPointPos = 104;
+const int imageSizePos = 144;
+const int idataDirPos = 208;
+const int sectionHeadersPos = 328;
 
 static int currentSectionRva;
 static int currentSectionPos;
 static int currentSectionLength;
 static int linkLength;
+static int nextSectionRva;
+static int nextSectionPos;
+
+static int sectionAddresses[SECTION_COUNT];
+static int sectionPositions[SECTION_COUNT];
+static int numSections = 0;
+
 
 
 static inline int roundToSectionAlignment(int value) {
@@ -71,6 +83,50 @@ static void writeHeaders() {
 	write32(16);         // numDataDirectories
 	bufferAdvance(16 * 8);     // dataDirectories (fill in later)
 	bufferSeek(0x200);         // section headers (fill in later)
+
+	nextSectionPos = fileAlignment;
+	nextSectionRva = sectionAlignment;
+
+}
+
+
+
+static void writeSection(
+	char*       name,
+	int         characteristics,
+	void*       bytes,
+	char        size,
+	int         extraSize,
+	EyreSection section
+) {
+	int virtualAddress = nextSectionRva; // Must be aligned to sectionAlignment
+	int rawDataPos     = nextSectionPos; // Must be aligned to fileAlignment
+	int rawDataSize    = roundToFileAlignment(size); // Must be aligned to fileAlignment
+	int virtualSize    = size + extraSize; // No alignment requirement, may be smaller than rawDataSize
+
+	bufferSeek(rawDataPos);
+	writeBytes(bytes, size);
+
+	nextSectionPos += rawDataSize;
+	nextSectionRva += roundToSectionAlignment(virtualSize);
+
+	zeroTo(nextSectionPos);
+
+	bufferPos = sectionHeadersPos + numSections * 40;
+	numSections++;
+
+	writeAscii64(name);
+	write32(virtualSize);
+	write32(virtualAddress);
+	write32(rawDataSize);
+	write32(rawDataPos);
+	writeZero(12);
+	write32(characteristics);
+
+	bufferPos = nextSectionPos;
+
+	sectionAddresses[section] = virtualAddress;
+	sectionPositions[section] = rawDataPos;
 }
 
 
@@ -180,17 +236,19 @@ static void writeRelocations() {
 
 
 
-const int numSectionsPos = 70;
-const int entryPointPos = 104;
-const int imageSizePos = 144;
-const int idataDirPos = 208;
-const int sectionHeadersPos = 328;
+static void writeImports() {
+	if(dllImportCount == 0) return;
+
+	int idtsRva = currentSectionRva + 0x200;
+	int idtsPos = currentSectionPos + 0x200;
+}
 
 
 
 void eyreLink() {
 	writeHeaders();
 	writeSections();
+	writeImports();
 	linkLength = bufferPos;
 	writeRelocations();
 
