@@ -464,6 +464,7 @@ static void* parseOperand() {
 static InsNode* parseInstruction(EyreMnemonic mnemonic) {
 	InsNode* node = createNode(sizeof(InsNode), NODE_INS);
 	node->mnemonic = mnemonic;
+	node->size = 0;
 	node->op1 = NULL;
 	node->op2 = NULL;
 	node->op3 = NULL;
@@ -472,18 +473,22 @@ static InsNode* parseInstruction(EyreMnemonic mnemonic) {
 	if(atNewline() || tokenTypes[pos] == TOKEN_END) return node;
 
 	node->op1 = parseOperand();
+	node->size = 1;
 	if(tokenTypes[pos] != TOKEN_COMMA) return node;
 	pos++;
 
 	node->op2 = parseOperand();
+	node->size = 2;
 	if(tokenTypes[pos] != TOKEN_COMMA) return node;
 	pos++;
 
 	node->op3 = parseOperand();
+	node->size = 3;
 	if(tokenTypes[pos] != TOKEN_COMMA) return node;
 	pos++;
 
 	node->op4 = parseOperand();
+	node->size = 4;
 	if(!atTerminator()) parserError("Expecting statement bufferEnd");
 	return node;
 }

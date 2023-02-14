@@ -36,4 +36,8 @@ int eyreInternToMnemonic(int intern);
 
 
 
+extern int EYRE_INTERN_MAIN;
+
+
+
 #endif

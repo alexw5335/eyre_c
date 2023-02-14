@@ -14,8 +14,8 @@
 
 static int currentSectionRva;
 static int currentSectionPos;
+static int currentSectionLength;
 static int linkLength;
-
 
 
 static inline int roundToSectionAlignment(int value) {
@@ -47,7 +47,7 @@ static void writeHeaders() {
 	write32(0);          // sizeOfCode
 	write32(0);          // sizeOfInitialisedData
 	write32(0);          // sizeOfUninitialisedData
-	write32(0x1000);     // pEntryPoint    (fill in later);
+	write32(0);          // pEntryPoint    (fill in later);
 	write32(0);          // baseOfCode
 	write64(0x400000);   // imageBase
 	write32(0x1000);     // sectionAlignment
@@ -95,6 +95,7 @@ static void writeSections() {
 
 	currentSectionPos = rawDataPos;
 	currentSectionRva = virtualAddress;
+	currentSectionLength = virtualSize;
 }
 
 
@@ -139,7 +140,7 @@ static int resolveImmRec(void* n, int regValid) {
 		}
 	}
 
-	error("Invalid node");
+	error("Invalid node: %d", type);
 
 	return 0;
 }
@@ -157,21 +158,52 @@ static int resolveImm(void* n) {
 static void writeRelocations() {
 	for(int i = 0; i < relocationCount; i++) {
 		Relocation relocation = relocations[i];
-		if(relocation.offset != -2) error("Invalid relocation");
-		int value = resolveImm(relocation.node);
-		void* prev = bufferSeek(currentSectionPos + relocation.pos);
-		writeWidth(relocation.width, value);
-		bufferSetPos(prev);
+
+		if(relocation.offset == -2) {
+			int value = resolveImm(relocation.node);
+			bufferSeek(currentSectionPos + relocation.pos);
+			if(!writeWidth(relocation.width, value))
+				error("Invalid relocation");
+		} else if(relocation.offset >= 0) {
+			int value = resolveImm(relocation.node);
+			int base = relocation.pos + (1 << relocation.width) + relocation.offset;
+			value -= base;
+			bufferSeek(currentSectionPos + relocation.pos);
+			if(!writeWidth(relocation.width, value))
+				error("Invalid relocation");
+		} else {
+			error("Invalid relocation");
+		}
+
 	}
 }
+
+
+
+const int numSectionsPos = 70;
+const int entryPointPos = 104;
+const int imageSizePos = 144;
+const int idataDirPos = 208;
+const int sectionHeadersPos = 328;
 
 
 
 void eyreLink() {
 	writeHeaders();
 	writeSections();
-	linkLength = bufferPos - buffer;
+	linkLength = bufferPos;
 	writeRelocations();
+
+	if(entryPoint != NULL) {
+		bufferSeek(entryPointPos);
+		write32(entryPoint->pos + currentSectionRva);
+	}
+
+	bufferSeek(imageSizePos);
+	write32(currentSectionRva + roundToSectionAlignment(currentSectionLength));
+
+	bufferSeek(numSectionsPos);
+	write32(1);
 }
 
 
@@ -182,6 +214,18 @@ void* getLinkerBuffer() {
 
 
 
+void* getTextSectionBuffer() {
+	return &buffer[currentSectionPos];
+}
+
+
+
+int getTextSectionLength() {
+	return currentSectionLength;
+}
+
+
+
 int getLinkerBufferLength() {
-	return (int) (bufferPos - (void*) buffer);
+	return linkLength;
 }

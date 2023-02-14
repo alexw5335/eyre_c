@@ -26,7 +26,7 @@ char* eyreMnemonicNames[MNEMONIC_COUNT] = {
 	"rcr", "sal", "shl", "shr", 
 	"sar", "ret", "retf", "leavew", 
 	"leave", "int3", "int", "int1", 
-	"iretw", "iretd", "iretq", "jcxz", 
+	"iretw", "iretd", "iretq", "jecxz", 
 	"jrcxz", "in", "out", "hlt", 
 	"cmc", "not", "neg", "mul", 
 	"imul", "div", "idiv", "clc", 

@@ -2,68 +2,60 @@
 #define INCLUDE_BUFFER
 
 #include "intrin.h"
+#include "enums.h"
 
 
 
 #ifndef bufferCapacity
-#define bufferCapacity 66536
+#define bufferCapacity 100000
 #endif
 
 
 
+// Padding bytes allow for length checks at the end of functions
 static char buffer[bufferCapacity + 8];
-static void* bufferPos = buffer;
-static void* bufferEnd = buffer + bufferCapacity;
+static int bufferPos = 0;
 
 
-
-static inline int getBufferLength() {
-	return (int) (bufferPos - (void*) buffer);
-}
 
 static inline void checkBufferExtra(int length) {
-	if(bufferPos + length >= bufferEnd)
+	if(bufferPos + length >= bufferCapacity)
 		error("Capacity reached");
 }
 
 static inline void checkBuffer() {
-	if(bufferPos >= bufferEnd)
+	if(bufferPos >= bufferCapacity)
 		error("Capacity reached");
 }
 
 static void write8(char value) {
-	*(char*) bufferPos = value;
-	bufferPos++;
+	buffer[bufferPos++] = value;
 	checkBuffer();
 }
 
 static void write16(short value) {
-	*(short*) bufferPos = value;
+	*(short*) &buffer[bufferPos] = value;
 	bufferPos += 2;
 	checkBuffer();
 }
 
 static void write32(int value) {
-	*(int*) bufferPos = value;
+	*(int*) &buffer[bufferPos] = value;
 	bufferPos += 4;
 	checkBuffer();
 }
 
 static void write64(long long value) {
-	*(long long*) bufferPos = value;
+	*(long long*) &buffer[bufferPos] = value;
 	bufferPos += 8;
 	checkBuffer();
 }
 
-static void* bufferSeek(int pos) {
-	void* prev = bufferPos;
-	bufferPos = buffer + pos;
+static int bufferSeek(int pos) {
+	int prev = bufferPos;
+	bufferPos = pos;
 	checkBuffer();
 	return prev;
-}
-
-static void bufferSetPos(void* pos) {
-	bufferPos = pos;
 }
 
 static void writeAscii64(char* ascii) {
@@ -81,37 +73,34 @@ static void bufferAdvance(int count) {
 
 static void writeBytes(void* data, int length) {
 	checkBufferExtra(length);
-	memcpy(bufferPos, data, length);
+	memcpy(&buffer[bufferPos], data, length);
 	bufferPos += length;
 }
 
 static void writeVarLengthInt(int value) {
-	*(int*) bufferPos = value;
-	bufferPos += (7 + _bit_scan_reverse(value | 1) & -8) >> 3;
+	*(int*) &buffer[bufferPos] = value;
+	bufferPos += (8 + (_bit_scan_reverse(value | 1) & -8)) >> 3;
 	checkBuffer();
 }
 
 static int writeWidth(int width, s64 value) {
 	switch(width) {
-		case 0: {
-			return TRUE;
-		}
-		case 1: {
+		case WIDTH_BYTE: {
 			if(!isImm8(width)) return FALSE;
 			write8(value);
 			return TRUE;
 		}
-		case 2: {
+		case WIDTH_WORD: {
 			if(!isImm16(width)) return FALSE;
 			write16(value);
 			return TRUE;
 		}
-		case 3: {
+		case WIDTH_DWORD: {
 			if(!isImm32(width)) return FALSE;
 			write32(value);
 			return TRUE;
 		}
-		case 4: {
+		case WIDTH_QWORD: {
 			write64(value);
 			return TRUE;
 		}

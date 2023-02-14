@@ -123,9 +123,13 @@ static char* parseString(int length) {
 
 
 
-static int addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOperands operands, int widths) {
+static void addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOperands operands, int widths) {
 	if(encodingCount >= ENCODINGS_CAPACITY)
 		encodingError("Too many encodings");
+
+	for(int i = 0; i < group->encodingCount; i++)
+		if(group->encodings[i]->operands == operands)
+			return;
 
 	EyreGenEncoding* encoding  = &encodings[encodingCount++];
 	encoding->mnemonic  = group->mnemonic;
@@ -140,8 +144,6 @@ static int addEncoding(EyreGenGroup* group, int opcode, int extension, EyreOpera
 	group->encodings[group->encodingCount++] = encoding;
 	group->operandsBits |= (1 << encoding->operands);
 	group->specifierBits |= (1 << eyreOperandsSpecifiers[encoding->operands]);
-
-	return encodingCount - 1;
 }
 
 

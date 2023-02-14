@@ -3,7 +3,6 @@
 static EyreEncoding EYRE_ENCODINGS_ADD[] = {
 	{ 0, 0, 0, 15 },
 	{ 2, 0, 0, 15 },
-	{ 2, 0, 0, 15 },
 	{ 0, 0, 0, 15 },
 	{ 128, 0, 0, 15 },
 	{ 128, 0, 0, 15 },
@@ -14,7 +13,6 @@ static EyreEncoding EYRE_ENCODINGS_ADD[] = {
 
 static EyreEncoding EYRE_ENCODINGS_OR[] = {
 	{ 8, 0, 0, 15 },
-	{ 10, 0, 0, 15 },
 	{ 10, 0, 0, 15 },
 	{ 8, 0, 0, 15 },
 	{ 128, 1, 0, 15 },
@@ -27,7 +25,6 @@ static EyreEncoding EYRE_ENCODINGS_OR[] = {
 static EyreEncoding EYRE_ENCODINGS_ADC[] = {
 	{ 16, 0, 0, 15 },
 	{ 18, 0, 0, 15 },
-	{ 18, 0, 0, 15 },
 	{ 16, 0, 0, 15 },
 	{ 128, 2, 0, 15 },
 	{ 128, 2, 0, 15 },
@@ -38,7 +35,6 @@ static EyreEncoding EYRE_ENCODINGS_ADC[] = {
 
 static EyreEncoding EYRE_ENCODINGS_SBB[] = {
 	{ 24, 0, 0, 15 },
-	{ 26, 0, 0, 15 },
 	{ 26, 0, 0, 15 },
 	{ 24, 0, 0, 15 },
 	{ 128, 3, 0, 15 },
@@ -51,7 +47,6 @@ static EyreEncoding EYRE_ENCODINGS_SBB[] = {
 static EyreEncoding EYRE_ENCODINGS_AND[] = {
 	{ 32, 0, 0, 15 },
 	{ 34, 0, 0, 15 },
-	{ 34, 0, 0, 15 },
 	{ 32, 0, 0, 15 },
 	{ 128, 4, 0, 15 },
 	{ 128, 4, 0, 15 },
@@ -62,7 +57,6 @@ static EyreEncoding EYRE_ENCODINGS_AND[] = {
 
 static EyreEncoding EYRE_ENCODINGS_SUB[] = {
 	{ 40, 0, 0, 15 },
-	{ 42, 0, 0, 15 },
 	{ 42, 0, 0, 15 },
 	{ 40, 0, 0, 15 },
 	{ 128, 5, 0, 15 },
@@ -75,7 +69,6 @@ static EyreEncoding EYRE_ENCODINGS_SUB[] = {
 static EyreEncoding EYRE_ENCODINGS_XOR[] = {
 	{ 48, 0, 0, 15 },
 	{ 50, 0, 0, 15 },
-	{ 50, 0, 0, 15 },
 	{ 48, 0, 0, 15 },
 	{ 128, 6, 0, 15 },
 	{ 128, 6, 0, 15 },
@@ -86,7 +79,6 @@ static EyreEncoding EYRE_ENCODINGS_XOR[] = {
 
 static EyreEncoding EYRE_ENCODINGS_CMP[] = {
 	{ 56, 0, 0, 15 },
-	{ 58, 0, 0, 15 },
 	{ 58, 0, 0, 15 },
 	{ 56, 0, 0, 15 },
 	{ 128, 7, 0, 15 },
@@ -294,7 +286,6 @@ static EyreEncoding EYRE_ENCODINGS_JS[] = {
 static EyreEncoding EYRE_ENCODINGS_JZ[] = {
 	{ 116, 0, 0, 0 },
 	{ 33807, 0, 0, 0 },
-	{ 33807, 0, 0, 0 },
 };
 
 static EyreEncoding EYRE_ENCODINGS_TEST[] = {
@@ -309,14 +300,12 @@ static EyreEncoding EYRE_ENCODINGS_XCHG[] = {
 	{ 134, 0, 0, 15 },
 	{ 134, 0, 0, 15 },
 	{ 134, 0, 0, 15 },
-	{ 134, 0, 0, 15 },
 	{ 144, 0, 0, 14 },
 	{ 144, 0, 0, 14 },
 };
 
 static EyreEncoding EYRE_ENCODINGS_MOV[] = {
 	{ 136, 0, 0, 15 },
-	{ 138, 0, 0, 15 },
 	{ 138, 0, 0, 15 },
 	{ 136, 0, 0, 15 },
 	{ 198, 0, 0, 15 },
@@ -556,12 +545,12 @@ static EyreEncoding EYRE_ENCODINGS_IRETQ[] = {
 	{ 53064, 0, 0, 0 },
 };
 
-static EyreEncoding EYRE_ENCODINGS_JCXZ[] = {
-	{ 227, 0, 0, 0 },
+static EyreEncoding EYRE_ENCODINGS_JECXZ[] = {
+	{ 58215, 0, 0, 0 },
 };
 
 static EyreEncoding EYRE_ENCODINGS_JRCXZ[] = {
-	{ 58184, 0, 0, 0 },
+	{ 227, 0, 0, 0 },
 };
 
 static EyreEncoding EYRE_ENCODINGS_IN[] = {
@@ -680,14 +669,14 @@ static EyreEncoding EYRE_ENCODINGS_RDSEED[] = {
 };
 
 static EyreGroup eyreEncodings[] = {
-	{ 4080, 5, EYRE_ENCODINGS_ADD },
-	{ 4080, 5, EYRE_ENCODINGS_OR },
-	{ 4080, 5, EYRE_ENCODINGS_ADC },
-	{ 4080, 5, EYRE_ENCODINGS_SBB },
-	{ 4080, 5, EYRE_ENCODINGS_AND },
-	{ 4080, 5, EYRE_ENCODINGS_SUB },
-	{ 4080, 5, EYRE_ENCODINGS_XOR },
-	{ 4080, 5, EYRE_ENCODINGS_CMP },
+	{ 4080, 37, EYRE_ENCODINGS_ADD },
+	{ 4080, 37, EYRE_ENCODINGS_OR },
+	{ 4080, 37, EYRE_ENCODINGS_ADC },
+	{ 4080, 37, EYRE_ENCODINGS_SBB },
+	{ 4080, 37, EYRE_ENCODINGS_AND },
+	{ 4080, 37, EYRE_ENCODINGS_SUB },
+	{ 4080, 37, EYRE_ENCODINGS_XOR },
+	{ 4080, 37, EYRE_ENCODINGS_CMP },
 	{ 49164, 3, EYRE_ENCODINGS_PUSH },
 	{ 12, 3, EYRE_ENCODINGS_POP },
 	{ 16384, 1, EYRE_ENCODINGS_MOVSXD },
@@ -729,7 +718,7 @@ static EyreGroup eyreEncodings[] = {
 	{ 49152, 1, EYRE_ENCODINGS_JPO },
 	{ 49152, 1, EYRE_ENCODINGS_JS },
 	{ 49152, 1, EYRE_ENCODINGS_JZ },
-	{ 2512, 1, EYRE_ENCODINGS_TEST },
+	{ 2512, 33, EYRE_ENCODINGS_TEST },
 	{ 49264, 1, EYRE_ENCODINGS_XCHG },
 	{ 16880, 1, EYRE_ENCODINGS_MOV },
 	{ 32, 1, EYRE_ENCODINGS_LEA },
@@ -783,7 +772,7 @@ static EyreGroup eyreEncodings[] = {
 	{ 1, 1, EYRE_ENCODINGS_IRETW },
 	{ 1, 1, EYRE_ENCODINGS_IRETD },
 	{ 1, 1, EYRE_ENCODINGS_IRETQ },
-	{ 16384, 1, EYRE_ENCODINGS_JCXZ },
+	{ 16384, 1, EYRE_ENCODINGS_JECXZ },
 	{ 16384, 1, EYRE_ENCODINGS_JRCXZ },
 	{ 49152, 1, EYRE_ENCODINGS_IN },
 	{ 49152, 1, EYRE_ENCODINGS_OUT },

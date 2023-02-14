@@ -3,6 +3,4 @@ dllimport kernel32 {
 	ExitProcess
 }
 
-label:
-	push label2
-label2:
+jrcxz 1

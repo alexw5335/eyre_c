@@ -355,6 +355,10 @@ int eyreInternToMnemonic(int intern) {
 
 
 
+int EYRE_INTERN_MAIN;
+
+
+
 void eyreInitInterns() {
 	// Keywords
 	keywordStart = stringsSize;
@@ -385,4 +389,6 @@ void eyreInitInterns() {
 	for(int i = 0; i < MNEMONIC_COUNT; i++)
 		addStandardIntern(eyreMnemonicNames[i]);
 	mnemonicCount = stringsSize - mnemonicStart;
+
+	EYRE_INTERN_MAIN = addStandardIntern("main");
 }

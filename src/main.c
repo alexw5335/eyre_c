@@ -15,11 +15,16 @@ static void test() {
 	eyreResolve(&srcFile);
 	printNewline();
 	eyreAssemble(&srcFile);
-	writeFile(getLocalFile("test.obj"), getAssemblerBufferLength(), getAssemblerBuffer());
-	runCommandArgs(3, "ndisasm", "-b64", getLocalFile("test.obj"));
+
 	eyreLink();
 	writeFile(getLocalFile("test.exe"), getLinkerBufferLength(), getLinkerBuffer());
+	//runCommandArgs(3, "dumpbin", "/all", getLocalFile("test.exe"));
+
+	writeFile(getLocalFile("test.obj"), getTextSectionLength(), getTextSectionBuffer());
+	runCommandArgs(3, "ndisasm", "-b64", getLocalFile("test.obj"));
+
 }
+
 
 
 

@@ -1,0 +1,3 @@
+- Custom encodings for RM_CL and RM_1, since they are only used with SHL/SHR/... ?
+	- Could get rid of the specifier system entirely
+	- Custom encodings are more flexible

@@ -205,6 +205,7 @@ typedef enum {
 	SPECIFIER_RM_I8,
 	SPECIFIER_RM_1,
 	SPECIFIER_RM_CL,
+	SPECIFIER_A_I,
 	SPECIFIER_COUNT,
 } EyreSpecifier;
 

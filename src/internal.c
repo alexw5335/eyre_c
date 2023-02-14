@@ -42,10 +42,11 @@ DllImport dllImports[dllImportCapacity];
 
 int dllImportCount;
 
-
 Relocation relocations[relocationCapacity];
 
 int relocationCount;
+
+PosSymbol* entryPoint;
 
 
 
@@ -104,6 +105,10 @@ void printPointer(void* value) {
 
 void printInt(int value) {
 	printf("%d\n", value);
+}
+
+void printHex(int value) {
+	printf("%x\n", value);
 }
 
 void printString(char* value) {

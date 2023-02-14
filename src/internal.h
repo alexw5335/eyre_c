@@ -136,6 +136,8 @@ extern Relocation relocations[relocationCapacity];
 
 extern int relocationCount;
 
+extern PosSymbol* entryPoint;
+
 void* getAssemblerBuffer();
 
 int getAssemblerBufferLength();
@@ -143,6 +145,10 @@ int getAssemblerBufferLength();
 void* getLinkerBuffer();
 
 int getLinkerBufferLength();
+
+void* getTextSectionBuffer();
+
+int getTextSectionLength();
 
 
 
@@ -163,6 +169,8 @@ void checkCapacity(void** pData, int size, int* pCapacity, int elementSize);
 void printPointer(void* value);
 
 void printInt(int value);
+
+void printHex(int value);
 
 void printString(char* value);
 

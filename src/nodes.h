@@ -52,8 +52,9 @@ typedef struct {
 
 
 typedef struct {
-	char type;
-	char mnemonic;
+	char  type;
+	char  mnemonic;
+	char  size;
 	void* op1;
 	void* op2;
 	void* op3;

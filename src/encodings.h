@@ -8,7 +8,7 @@
 
 
 typedef struct {
-	int opcode;
+	int  opcode;
 	char extension;
 	char prefix;
 	char widths;
