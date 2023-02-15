@@ -115,6 +115,7 @@ typedef struct {
 	int   pos;
 	char  width;
 	void* node;
+	int   section;
 	int   offset; // >= 0: RIP-relative. -1: Absolute. -2: Other
 } Relocation;
 

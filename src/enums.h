@@ -182,8 +182,8 @@ typedef enum {
 	KEYWORD_PROC,
 	KEYWORD_ENUM,
 	KEYWORD_BITMASK,
-	KEYWORD_REL,
 	KEYWORD_DLLIMPORT,
+	KEYWORD_VAR,
 	KEYWORD_COUNT,
 } EyreKeyword;
 
@@ -196,6 +196,16 @@ typedef enum {
 	WIDTH_QWORD,
 	WIDTH_COUNT,
 } EyreWidth;
+
+
+
+typedef enum {
+	VARWIDTH_DB,
+	VARWIDTH_DW,
+	VARWIDTH_DD,
+	VARWIDTH_DQ,
+	VARWIDTH_COUNT,
+} EyreVarWidth;
 
 
 
@@ -276,6 +286,8 @@ typedef enum {
 
 
 extern char* eyreWidthNames[WIDTH_COUNT];
+
+extern char* eyreVarWidthNames[VARWIDTH_COUNT];
 
 extern char* eyreOperandsNames[OPERANDS_COUNT];
 

@@ -333,6 +333,11 @@ static int widthCount;
 static int mnemonicStart;
 static int mnemonicCount;
 
+static int varWidthStart;
+static int varWidthCount;
+
+
+
 int eyreInternToRegister(int intern) {
 	int value = intern - registerStart;
 	return value < registerCount ? value : -1;
@@ -351,6 +356,11 @@ int eyreInternToWidth(int intern) {
 int eyreInternToMnemonic(int intern) {
 	int value = intern - mnemonicStart;
 	return value < mnemonicCount ? value : -1;
+}
+
+int eyreInternToVarWidth(int intern) {
+	int value = intern - varWidthStart;
+	return value < varWidthCount ? value: -1;
 }
 
 
@@ -389,6 +399,12 @@ void eyreInitInterns() {
 	for(int i = 0; i < MNEMONIC_COUNT; i++)
 		addStandardIntern(eyreMnemonicNames[i]);
 	mnemonicCount = stringsSize - mnemonicStart;
+
+	// Var widths
+	varWidthStart = stringsSize;
+	for(int i = 0 ;i < VARWIDTH_COUNT; i++)
+		addStandardIntern(eyreVarWidthNames[i]);
+	varWidthCount = stringsSize - varWidthCount;
 
 	EYRE_INTERN_MAIN = addStandardIntern("main");
 }

@@ -34,6 +34,8 @@ int eyreInternToWidth(int intern);
 
 int eyreInternToMnemonic(int intern);
 
+int eyreInternToVarWidth(int intern);
+
 
 
 extern int EYRE_INTERN_MAIN;

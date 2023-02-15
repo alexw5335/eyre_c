@@ -1,9 +1,9 @@
-#include <string.h>
 #include "internal.h"
 #include "buffer.h"
 #include "nodes.h"
 #include "enums.h"
 #include "symbols.h"
+#include "intern.h"
 
 
 
@@ -17,17 +17,30 @@ const int imageSizePos = 144;
 const int idataDirPos = 208;
 const int sectionHeadersPos = 328;
 
-static int currentSectionRva;
-static int currentSectionPos;
-static int currentSectionLength;
 static int linkLength;
 static int nextSectionRva;
 static int nextSectionPos;
 
+static int sectionLengths[SECTION_COUNT];
 static int sectionAddresses[SECTION_COUNT];
 static int sectionPositions[SECTION_COUNT];
 static int numSections = 0;
 
+static int getSectionPos(EyreSection section) {
+	if(sectionPositions[section] == 0)
+		error("Uninitialised section: %d", section);
+	return sectionPositions[section];
+}
+
+static int getSectionAddress(EyreSection section) {
+	if(sectionAddresses[section] == 0)
+		error("uninitialised section: %d", section);
+	return sectionAddresses[section];
+}
+
+static int getSymbolAddress(PosSymbol* symbol) {
+	return getSectionAddress(symbol->section) + symbol->pos;
+}
 
 
 static inline int roundToSectionAlignment(int value) {
@@ -95,7 +108,7 @@ static void writeSection(
 	char*       name,
 	int         characteristics,
 	void*       bytes,
-	char        size,
+	int         size,
 	int         extraSize,
 	EyreSection section
 ) {
@@ -105,7 +118,10 @@ static void writeSection(
 	int virtualSize    = size + extraSize; // No alignment requirement, may be smaller than rawDataSize
 
 	bufferSeek(rawDataPos);
-	writeBytes(bytes, size);
+	if(bytes != NULL)
+		writeBytes(bytes, size);
+	else
+		bufferPos += size;
 
 	nextSectionPos += rawDataSize;
 	nextSectionRva += roundToSectionAlignment(virtualSize);
@@ -127,31 +143,20 @@ static void writeSection(
 
 	sectionAddresses[section] = virtualAddress;
 	sectionPositions[section] = rawDataPos;
+	sectionLengths[section] = virtualSize;
 }
 
 
 
 static void writeSections() {
-	int rawDataPos = fileAlignment;
-	int virtualSize = getAssemblerBufferLength();
-	int rawDataSize = roundToFileAlignment(virtualSize);
-	int virtualAddress = sectionAlignment;
-
-	bufferSeek(328); // Section headers start
-	writeAscii64(".text");
-	write32(virtualSize);
-	write32(virtualAddress);
-	write32(rawDataSize);
-	write32(rawDataPos);
-	bufferAdvance(12);
-	write32(0x60000020 | 0x40000040);
-
-	bufferSeek(rawDataPos);
-	writeBytes(getAssemblerBuffer(), rawDataSize);
-
-	currentSectionPos = rawDataPos;
-	currentSectionRva = virtualAddress;
-	currentSectionLength = virtualSize;
+	writeSection(
+		".text",
+		0x60000020,
+		getAssemblerBuffer(),
+		getAssemblerBufferLength(),
+		0,
+		SECTION_TEXT
+	);
 }
 
 
@@ -190,7 +195,8 @@ static int resolveImmRec(void* n, int regValid) {
 		SymBase* symBase = node->symbol;
 
 		if(symBase->flags & SYM_FLAGS_POS) {
-			return ((PosSymbol*) symBase)->pos;
+			PosSymbol* posSym = (PosSymbol*) symBase;
+			return getSectionAddress(posSym->section) + posSym->pos;
 		} else {
 			error("Invalid symbol");
 		}
@@ -217,14 +223,14 @@ static void writeRelocations() {
 
 		if(relocation.offset == -2) {
 			int value = resolveImm(relocation.node);
-			bufferSeek(currentSectionPos + relocation.pos);
+			bufferSeek(getSectionPos(relocation.section) + relocation.pos);
 			if(!writeWidth(relocation.width, value))
 				error("Invalid relocation");
 		} else if(relocation.offset >= 0) {
 			int value = resolveImm(relocation.node);
-			int base = relocation.pos + (1 << relocation.width) + relocation.offset;
+			int base = getSectionAddress(relocation.section) + relocation.pos + (1 << relocation.width) + relocation.offset;
 			value -= base;
-			bufferSeek(currentSectionPos + relocation.pos);
+			bufferSeek(getSectionPos(relocation.section) + relocation.pos);
 			if(!writeWidth(relocation.width, value))
 				error("Invalid relocation");
 		} else {
@@ -239,8 +245,60 @@ static void writeRelocations() {
 static void writeImports() {
 	if(dllImportCount == 0) return;
 
-	int idtsRva = currentSectionRva + 0x200;
-	int idtsPos = currentSectionPos + 0x200;
+	int idtsRva = nextSectionRva;
+	int idtsPos = bufferPos;
+	int idtsSize = dllImportCount * 20 + 20;
+	int offset = idtsPos - idtsRva;
+
+	write32At(idataDirPos, idtsRva);
+	write32At(idataDirPos + 4, dllImportCount * 20 + 20);
+	writeZero(idtsSize);
+
+	for(int dllIndex = 0; dllIndex < dllImportCount; dllIndex++) {
+		DllImport dll = dllImports[dllIndex];
+
+		int idtPos = idtsPos + dllIndex * 20;
+		int dllNamePos = bufferPos;
+
+		writeAscii(eyreGetString(dll.dllName)->data);
+		writeAscii(".dll");
+		write8(0);
+		bufferPos = (bufferPos + 7) & -8; // align by 8, not necessary?
+
+		int iltPos = bufferPos;
+
+		writeZero(dll.importCount * 8 + 8);
+
+		int iatPos = bufferPos;
+
+		writeZero(dll.importCount * 8 + 8);
+
+		for(int importIndex = 0; importIndex < dll.importCount; importIndex++) {
+			DllImportSymbol* import = dll.imports[importIndex];
+			write32At(iltPos + importIndex * 8, bufferPos - offset);
+			write32At(iatPos + importIndex * 8, bufferPos - offset);
+
+			write16(0);
+			writeAsciiNt(eyreGetString(import->importName)->data);
+			if(bufferPos & 1) bufferPos++; // align even
+			import->pos = iatPos + importIndex * 8 - idtsPos;
+		}
+
+		write32At(idtPos, iltPos - offset);
+		write32At(idtPos + 12, dllNamePos - offset);
+		write32At(idtPos + 16, iatPos - offset);
+	}
+
+	int size = bufferPos - idtsPos;
+
+	writeSection(
+		".idata",
+		0x40000040,
+		NULL,
+		size,
+		0,
+		SECTION_IDATA
+	);
 }
 
 
@@ -254,14 +312,14 @@ void eyreLink() {
 
 	if(entryPoint != NULL) {
 		bufferSeek(entryPointPos);
-		write32(entryPoint->pos + currentSectionRva);
+		write32(getSymbolAddress(entryPoint));
 	}
 
 	bufferSeek(imageSizePos);
-	write32(currentSectionRva + roundToSectionAlignment(currentSectionLength));
+	write32(nextSectionRva);
 
 	bufferSeek(numSectionsPos);
-	write32(1);
+	write32(numSections);
 }
 
 
@@ -273,13 +331,13 @@ void* getLinkerBuffer() {
 
 
 void* getTextSectionBuffer() {
-	return &buffer[currentSectionPos];
+	return &buffer[sectionPositions[SECTION_TEXT]];
 }
 
 
 
 int getTextSectionLength() {
-	return currentSectionLength;
+	return sectionLengths[SECTION_TEXT];
 }
 
 

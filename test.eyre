@@ -1,6 +1,14 @@
 dllimport kernel32 {
-	WriteFileA
+	WriteFile
 	ExitProcess
 }
 
-jrcxz 1
+main:
+	sub rsp, 56
+	mov ecx, -11
+	lea rdx, [main]
+	mov r8d, 1
+	mov r9, [rsp + 40]
+	mov qword [rsp + 32], 0
+	call qword [WriteFile]
+	call qword [ExitProcess]

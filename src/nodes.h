@@ -149,12 +149,18 @@ typedef struct {
 
 
 typedef struct {
-	char  type;
-	char  op;
-	void* positive;
-	void* negative;
-	void* scalar;
-} RelNode;
+	char   width;
+	int    nodeCount;
+	void** nodes;
+} VarPart;
+
+
+
+typedef struct {
+	char      type;
+	int       partCount;
+	VarPart** parts;
+} VarNode;
 
 
 

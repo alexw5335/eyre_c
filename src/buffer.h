@@ -28,6 +28,26 @@ static inline void checkBuffer() {
 		error("Capacity reached");
 }
 
+
+
+static void write8At(int pos, int value) {
+	buffer[pos] = value;
+}
+
+static void write16At(int pos, int value) {
+	*(short*) &buffer[pos] = value;
+}
+
+static void write32At(int pos, int value) {
+	*(int*) &buffer[pos] = value;
+}
+
+static void write64At(int pos, int value) {
+	*(long long*) &buffer[pos] = value;
+}
+
+
+
 static void write8(char value) {
 	buffer[bufferPos++] = value;
 	checkBuffer();
@@ -51,6 +71,8 @@ static void write64(long long value) {
 	checkBuffer();
 }
 
+
+
 static int bufferSeek(int pos) {
 	int prev = bufferPos;
 	bufferPos = pos;
@@ -69,6 +91,23 @@ static void writeZero(int length) {
 	checkBufferExtra(length);
 	memset(&buffer[bufferPos], 0, length);
 	bufferPos += length;
+}
+
+
+
+static void writeAsciiNt(char* ascii) {
+	int length = strlen(ascii);
+	checkBufferExtra(length + 1);
+	for(int i = 0; i < length; i++)
+		buffer[bufferPos++] = ascii[i];
+	buffer[bufferPos++] = 0;
+}
+
+static void writeAscii(char* ascii) {
+	int length = strlen(ascii);
+	checkBufferExtra(length);
+	for(int i = 0; i < length; i++)
+		buffer[bufferPos++] = ascii[i];
 }
 
 static void writeAscii64(char* ascii) {

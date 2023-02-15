@@ -18,11 +18,10 @@ static void test() {
 
 	eyreLink();
 	writeFile(getLocalFile("test.exe"), getLinkerBufferLength(), getLinkerBuffer());
-	//runCommandArgs(3, "dumpbin", "/all", getLocalFile("test.exe"));
+	runCommandArgs(3, "dumpbin", "/all", getLocalFile("test.exe"));
 
 	writeFile(getLocalFile("test.obj"), getTextSectionLength(), getTextSectionBuffer());
 	runCommandArgs(3, "ndisasm", "-b64", getLocalFile("test.obj"));
-
 }
 
 

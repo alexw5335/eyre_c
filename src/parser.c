@@ -354,6 +354,7 @@ static void parseDllImport() {
 		if(dllImportCount >= dllImportCapacity)
 			parserError("Too many DLL imports: %d", dllImportCount);
 		import = &dllImports[dllImportCount++];
+		import->dllName = dllName;
 	}
 
 	while(tokenTypes[pos] != TOKEN_RBRACE) {
@@ -412,12 +413,50 @@ static void parseLabel(int name) {
 	addNode(node);
 }
 
+//			InvokeNode* node = createNode(sizeof(InvokeNode), NODE_INVOKE);
+//			node->invoker = atom;
+//			atom = node;
+//
+//			listBuilderBegin();
+//
+//			while(1) {
+//				if(tokenTypes[pos] == TOKEN_RPAREN) break;
+//				listBuilderAdd(parseExpression(0));
+//				if(tokenTypes[pos] != TOKEN_COMMA) break;
+//				pos++;
+//			}
+//
+//			expectToken(TOKEN_RPAREN);
+//
+//			node->args = listBuilderBuild();
+//			node->argCount = listBuilderSize;
+
+
+static void parseVar() {
+	int name = parseId();
+
+	listBuilderBegin();
+
+	while(1) {
+		if(tokenTypes[pos] != TOKEN_ID) break;
+		int directive = eyreInternToVarWidth(tokenValues[pos++]);
+		if(directive == -1) parserError("Invalid var directive");
+
+		while(1) {
+			void* expression = parseExpression(0);
+
+		}
+	}
+
+}
+
 
 
 static void parseKeyword(EyreKeyword keyword) {
 	switch(keyword) {
 		case KEYWORD_NAMESPACE: parseNamespace(); break;
 		case KEYWORD_DLLIMPORT: parseDllImport(); break;
+		case KEYWORD_VAR: parseVar(); break;
 		default: parserError("Invalid keyword: %s", eyreKeywordNames[keyword]);
 	}
 }
@@ -675,17 +714,7 @@ void eyrePrintNode(void* node) {
 		printf(")");
 	} else if(type == NODE_SCOPE_END) {
 		printf("scope bufferEnd\n");
-	} else if(type == NODE_REL) {
-		RelNode* n = node;
-		printf("rel(");
-		eyrePrintNode(n->positive);
-		printf(", ");
-		eyrePrintNode(n->negative);
-		printf(", ");
-		eyrePrintNode(n->scalar);
-	}
-
-	else {
+	} else {
 		error("Invalid node for printing: %d (%s)", type, eyreNodeNames[type]);
 	}
 }

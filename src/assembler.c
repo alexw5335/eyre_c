@@ -117,7 +117,7 @@ static int resolveImmRec(void* n, int regValid) {
 		}
 	}
 
-	assemblerError("Invalid node");
+	assemblerError("Invalid node: %d", type);
 
 	return 0;
 }
@@ -377,10 +377,11 @@ static inline void checkPrefix(EyreEncoding* encoding) {
 
 static void addRelocation(char width, void* node, int offset) {
 	Relocation* relocation = &relocations[relocationCount++];
-	relocation->pos = bufferPos;
-	relocation->width = width;
-	relocation->node = node;
-	relocation->offset = offset;
+	relocation->pos     = bufferPos;
+	relocation->width   = width;
+	relocation->node    = node;
+	relocation->offset  = offset;
+	relocation->section = SECTION_TEXT;
 }
 
 
@@ -481,11 +482,12 @@ static int writeMem(
 		addRelativeRelocation(WIDTH_DWORD, node, immLength);
 		write32(0);
 	} else if(mod != 0) { // Absolute 32-bit
-		writeRex(rexW, rexR, 0, 0);
-		writeVarLengthInt(opcode);
-		writeModRM(0b00, reg, 0b100);
-		writeSib(0b00, 0b100, 0b101);
-		relocAndDisp(mod, disp, node);
+		assemblerError("Absolute memory operands not yet supported");
+		//writeRex(rexW, rexR, 0, 0);
+		//writeVarLengthInt(opcode);
+		//writeModRM(0b00, reg, 0b100);
+		//writeSib(0b00, 0b100, 0b101);
+		//relocAndDisp(mod, disp, node);
 	} else { // Empty memory operand
 		invalidEncoding();
 	}
@@ -845,8 +847,14 @@ static void customEncodeJCC(InsNode* node) {
 
 
 static void customEncodeCALL(InsNode* node) {
-	if(node->op2 != NULL)
+	if(node->size != 1)
 		invalidEncoding();
+
+	if(nodeType(node->op1) != NODE_IMM) {
+		assembleInstruction_(node);
+		return;
+	}
+
 	int imm = resolveImm(node->op1);
 	encodeNoneRaw(OPERANDS_CUSTOM1);
 	if(hasImmReloc) addRelocation(WIDTH_DWORD, node, 0);
@@ -915,7 +923,7 @@ static void customEncodePUSH(InsNode* node) {
 
 
 static void customEncodeIMUL(InsNode* node) {
-	if(node->op2 == NULL || node->op3 == NULL)
+	if(node->size != 3)
 		assembleInstruction_(node);
 	if(node->op4 != NULL)
 		invalidEncoding();
